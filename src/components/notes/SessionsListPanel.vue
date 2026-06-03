@@ -1,40 +1,30 @@
-<!-- SessionsListPanel — sessions list scoped to the current viewer.
-     When DM is viewing-as a player, fetchAll() RLS filters sessions
-     to those visible to that player automatically via effectiveBucket.
-     No changes needed here beyond ensuring the list reloads on viewingAs change. -->
 <template>
   <div class="sessions-list-panel">
-    <q-banner v-if="error" class="bg-negative text-white q-mb-md">
-      Failed to load sessions: {{ error.message }}
-    </q-banner>
-
     <div v-if="loading" class="text-center q-pa-xl">
       <q-spinner size="32px" />
     </div>
 
-    <q-list separator v-else-if="sessions.length">
-      <q-item
+    <q-banner v-else-if="error" class="bg-negative text-white q-mb-md">
+      Failed to load sessions: {{ error.message }}
+    </q-banner>
+
+    <div v-else-if="sessions.length" class="session-list">
+      <div
         v-for="s in sessions"
         :key="s.id"
-        clickable
+        class="session-row"
         @click="open(s.id)"
       >
-        <q-item-section avatar>
-          <div class="session-number">{{ s.number }}</div>
-        </q-item-section>
-        <q-item-section>
-          <q-item-label>{{ s.title || ('Session ' + s.number) }}</q-item-label>
-          <q-item-label caption v-if="s.row_summary || s.date">
-            {{ s.row_summary || s.date }}
-          </q-item-label>
-        </q-item-section>
-        <q-item-section side>
-          <q-icon name="chevron_right" />
-        </q-item-section>
-      </q-item>
-    </q-list>
+        <div class="session-num">{{ s.number }}</div>
+        <div class="session-info">
+          <div class="session-title">{{ s.title || ('Session ' + s.number) }}</div>
+          <div v-if="s.row_summary" class="session-summary">{{ s.row_summary }}</div>
+        </div>
+        <div class="session-chevron">&rsaquo;</div>
+      </div>
+    </div>
 
-    <div v-else class="text-center text-grey-7 q-pa-xl">No sessions yet.</div>
+    <div v-else class="empty">No sessions yet.</div>
   </div>
 </template>
 
@@ -62,7 +52,6 @@ async function load() {
   }
 }
 
-// Reload when DM switches which player they're viewing as.
 watch(() => auth.viewingAs, load);
 onMounted(load);
 
@@ -73,10 +62,69 @@ function open(sessionId) {
 
 <style scoped>
 .sessions-list-panel { padding: 0; }
-.session-number {
-  font-size: 1.4rem;
-  color: #6b4f2e;
-  min-width: 40px;
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.session-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.session-row:first-child { border-top: 1px solid var(--border); }
+.session-row:hover { background: rgba(201, 169, 97, 0.04); }
+
+.session-num {
+  font-size: 2rem;
+  color: var(--gold-dim);
+  min-width: 28px;
   text-align: center;
+  line-height: 1.2;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-title {
+  font-size: 1.1rem;
+  color: var(--gold);
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.session-summary {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.session-chevron {
+  font-size: 1.5rem;
+  color: var(--gold-dim);
+  flex-shrink: 0;
+  line-height: 1.2;
+  padding-top: 4px;
+  opacity: 0.6;
+}
+.session-row:hover .session-chevron { opacity: 1; color: var(--gold); }
+
+.empty {
+  color: var(--text-dim);
+  font-style: italic;
+  text-align: center;
+  padding: 32px;
+  font-size: 13px;
 }
 </style>
