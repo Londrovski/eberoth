@@ -28,7 +28,6 @@
           <RealtimeDot />
           <DmToolsMenu />
           <ViewAsSelect />
-          <!-- Inline viewing-as label -->
           <transition name="label-fade">
             <span v-if="viewer.isViewingAs" class="viewing-as-label">
               👁 <strong>{{ viewingAsLabel }}</strong>
@@ -56,7 +55,6 @@
             <span>Notes</span>
           </button>
         </router-link>
-        <!-- Viewing-as label on mobile -->
         <transition name="label-fade">
           <span v-if="viewer.isDM && viewer.isViewingAs" class="viewing-as-label mob-viewing-as">
             👁 <strong>{{ viewingAsLabel }}</strong>
@@ -177,10 +175,9 @@ async function onSignOut() {
   border-bottom: 1px solid var(--border);
   transition: background 0.3s ease, border-color 0.3s ease;
 }
-/* Blue tint when viewing as a player */
 .eb-topbar--viewing-as {
-  background: rgba(20, 60, 140, 0.92) !important;
-  border-bottom-color: rgba(80, 130, 255, 0.4) !important;
+  background: rgba(30, 50, 90, 0.75) !important;
+  border-bottom-color: rgba(80, 120, 200, 0.25) !important;
 }
 
 .eb-toolbar { min-height: 64px; }
@@ -207,21 +204,20 @@ async function onSignOut() {
 .logout-btn { color: var(--gold-dim); font-size: 0.85rem; letter-spacing: 0.04em; padding: 6px 10px; }
 .logout-btn:hover { color: var(--gold); }
 
-/* Viewing-as inline label */
 .viewing-as-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: rgba(200, 220, 255, 0.9);
+  color: rgba(180, 205, 255, 0.8);
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
-.viewing-as-label strong { color: #fff; font-weight: 600; }
+.viewing-as-label strong { color: rgba(210, 225, 255, 0.95); font-weight: 600; }
 .viewing-as-exit {
   background: transparent;
-  border: 1px solid rgba(150, 190, 255, 0.4);
-  color: rgba(200, 220, 255, 0.85);
+  border: 1px solid rgba(120, 160, 230, 0.3);
+  color: rgba(180, 205, 255, 0.75);
   border-radius: 3px;
   padding: 2px 8px;
   font-size: 11px;
@@ -231,9 +227,9 @@ async function onSignOut() {
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .viewing-as-exit:hover {
-  background: rgba(100, 150, 255, 0.2);
-  border-color: rgba(150, 190, 255, 0.7);
-  color: #fff;
+  background: rgba(80, 120, 200, 0.15);
+  border-color: rgba(120, 160, 230, 0.6);
+  color: rgba(220, 235, 255, 0.95);
 }
 .label-fade-enter-active,
 .label-fade-leave-active { transition: opacity 0.25s ease; }
