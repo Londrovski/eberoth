@@ -8,29 +8,21 @@
       <q-spinner size="32px" />
     </div>
 
-    <q-list separator v-else-if="sessions.length" class="session-list">
-      <q-item
+    <div v-else-if="sessions.length" class="session-list">
+      <div
         v-for="s in sessions"
         :key="s.id"
-        clickable
-        v-ripple
-        class="session-item"
+        class="session-card"
         @click="open(s.id)"
       >
-        <q-item-section avatar>
-          <div class="session-number">{{ s.number }}</div>
-        </q-item-section>
-        <q-item-section>
-          <q-item-label class="session-title">{{ s.title || ('Session ' + s.number) }}</q-item-label>
-          <q-item-label caption class="session-caption" v-if="s.row_summary || s.date">
-            {{ s.row_summary || s.date }}
-          </q-item-label>
-        </q-item-section>
-        <q-item-section side>
-          <q-icon name="chevron_right" class="session-chevron" />
-        </q-item-section>
-      </q-item>
-    </q-list>
+        <div class="session-number">{{ s.number }}</div>
+        <div class="session-info">
+          <div class="session-title">{{ s.title || ('Session ' + s.number) }}</div>
+          <div v-if="s.row_summary" class="session-caption">{{ s.row_summary }}</div>
+        </div>
+        <q-icon name="chevron_right" class="session-chevron" />
+      </div>
+    </div>
 
     <div v-else class="empty">No sessions yet.</div>
   </div>
@@ -39,14 +31,14 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue';
 import * as sessionsApi from 'src/api/sessions';
-import { useEntityDetail } from 'src/composables/useEntityDetail';
+import { useSessionDetail } from 'src/composables/useSessionDetail';
 import { useAuthStore } from 'src/stores/auth';
 
-const auth = useAuthStore();
-const sessions = ref([]);
-const loading  = ref(true);
-const error    = ref(null);
-const detail   = useEntityDetail();
+const auth          = useAuthStore();
+const sessionDetail = useSessionDetail();
+const sessions      = ref([]);
+const loading       = ref(true);
+const error         = ref(null);
 
 async function load() {
   loading.value = true;
@@ -64,56 +56,74 @@ watch(() => auth.viewingAs, load);
 onMounted(load);
 
 function open(sessionId) {
-  detail.open(sessionId);
+  sessionDetail.open(sessionId);
 }
 </script>
 
 <style scoped>
-.sessions-list-panel { padding: 0; }
+.sessions-list-panel { padding: 8px 0; }
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.session-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 14px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.session-card:hover {
+  border-color: var(--gold-dim);
+  background: rgba(201, 169, 97, 0.04);
+}
 
 .session-number {
   font-size: 1.4rem;
   color: var(--gold-dim);
-  min-width: 40px;
+  min-width: 28px;
   text-align: center;
-  opacity: 0.7;
+  line-height: 1.3;
+  flex-shrink: 0;
+  opacity: 0.6;
+  padding-top: 1px;
 }
 
-.session-list :deep(.q-separator) {
-  background: var(--border);
-}
-
-.session-item {
-  background: transparent !important;
-  min-height: 56px;
-  padding: 10px 16px;
-}
-.session-item:hover {
-  background: rgba(201, 169, 97, 0.04) !important;
+.session-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .session-title {
-  color: var(--gold) !important;
-  font-size: 1rem !important;
-  font-weight: 500 !important;
-  line-height: 1.3 !important;
+  font-size: 1rem;
+  color: var(--gold);
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 3px;
 }
 
 .session-caption {
-  color: var(--text-dim) !important;
-  font-style: italic !important;
-  font-size: 0.82rem !important;
-  line-height: 1.5 !important;
-  opacity: 1 !important;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.5;
 }
 
 .session-chevron {
-  color: var(--gold-dim) !important;
-  opacity: 0.6;
+  color: var(--gold-dim);
+  flex-shrink: 0;
+  opacity: 0.5;
+  margin-top: 2px;
 }
-.session-item:hover .session-chevron {
-  opacity: 1;
-}
+.session-card:hover .session-chevron { opacity: 0.9; }
 
 .empty {
   color: var(--text-dim);
