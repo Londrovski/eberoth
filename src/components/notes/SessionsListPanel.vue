@@ -71,23 +71,23 @@ function open(sessionId) {
 .session-row {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
-  padding: 18px 20px;
+  gap: 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background 0.12s ease;
 }
-.session-row:first-child { border-top: 1px solid var(--border); }
 .session-row:hover { background: rgba(201, 169, 97, 0.04); }
 
 .session-num {
-  font-size: 2rem;
+  font-size: 1.1rem;
   color: var(--gold-dim);
-  min-width: 28px;
+  min-width: 20px;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.4;
   flex-shrink: 0;
-  padding-top: 2px;
+  opacity: 0.55;
+  padding-top: 1px;
 }
 
 .session-info {
@@ -96,29 +96,28 @@ function open(sessionId) {
 }
 
 .session-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--gold);
   font-weight: 500;
   line-height: 1.3;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .session-summary {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   color: var(--text-dim);
   font-style: italic;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .session-chevron {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   color: var(--gold-dim);
   flex-shrink: 0;
-  line-height: 1.2;
-  padding-top: 4px;
-  opacity: 0.6;
+  line-height: 1.4;
+  opacity: 0.5;
 }
-.session-row:hover .session-chevron { opacity: 1; color: var(--gold); }
+.session-row:hover .session-chevron { opacity: 0.9; }
 
 .empty {
   color: var(--text-dim);
