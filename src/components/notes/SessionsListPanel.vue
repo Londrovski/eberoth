@@ -13,7 +13,7 @@
         v-for="s in sessions"
         :key="s.id"
         class="session-card"
-        @click="open(s.id)"
+        @click="open(s)"
       >
         <div class="session-number">{{ s.number }}</div>
         <div class="session-info">
@@ -55,8 +55,8 @@ async function load() {
 watch(() => auth.viewingAs, load);
 onMounted(load);
 
-function open(sessionId) {
-  sessionDetail.open(sessionId);
+function open(session) {
+  sessionDetail.open(session, 'sessions-list');
 }
 </script>
 
