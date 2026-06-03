@@ -2,7 +2,8 @@
   <div class="threads-panel">
     <header class="drawer-header">
       <span class="hdr-title">Active Threads</span>
-      <button class="hdr-btn" :disabled="!authed" :title="'Add thread'" @click="add">+</button>
+      <span v-if="isViewingAs" class="viewing-as-badge">{{ viewingAsLabel }}'s threads</span>
+      <button v-else class="hdr-btn" :disabled="!authed" :title="'Add thread'" @click="add">+</button>
     </header>
 
     <div class="threads-list" ref="listEl">
@@ -22,23 +23,25 @@
               type="checkbox"
               v-model="t.done"
               class="thread-check"
+              :disabled="isViewingAs"
               @change="persist"
             />
             <span class="check-box" />
           </label>
           <span
             class="text"
-            contenteditable="true"
+            :contenteditable="!isViewingAs"
             spellcheck="false"
             :data-idx="i"
             :data-thread-id="t.id"
             @blur="onTextBlur(i, $event)"
             @keydown.enter.prevent="$event.target.blur()"
           ></span>
-          <button class="del" :title="'Remove'" @click="remove(t)">x</button>
+          <button v-if="!isViewingAs" class="del" :title="'Remove'" @click="remove(t)">x</button>
         </div>
         <div v-if="!threads.length" class="threads-empty">
-          No active threads. Tap + to add one.
+          <template v-if="isViewingAs">No threads for this player.</template>
+          <template v-else>No active threads. Tap + to add one.</template>
         </div>
       </template>
     </div>
@@ -56,12 +59,22 @@ import MentionPicker from 'components/shared/MentionPicker.vue';
 
 const auth = useAuthStore();
 const authed = computed(() => !!auth.user);
+const isViewingAs = computed(() => auth.isViewingAs);
+const viewingAsLabel = computed(() => {
+  const b = auth.viewingAs;
+  if (!b) return '';
+  return b.charAt(0).toUpperCase() + b.slice(1);
+});
+const viewingAsEmail = computed(() =>
+  isViewingAs.value ? auth.viewingAs + '@compendium.local' : null
+);
 
 const threads = ref([]);
 const listEl = ref(null);
 
 let saveTimer = null;
 function persist() {
+  if (isViewingAs.value) return; // read-only when viewing-as
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     threads.value.forEach((t, i) => { t.position = i; });
@@ -71,6 +84,7 @@ function persist() {
 
 const picker = useMentionPicker({
   onInput(el) {
+    if (isViewingAs.value) return;
     const idx = parseInt(el.getAttribute('data-idx'), 10);
     if (Number.isInteger(idx) && threads.value[idx]) {
       threads.value[idx].text = el.innerHTML;
@@ -80,13 +94,14 @@ const picker = useMentionPicker({
 });
 
 function onTextBlur(i, e) {
+  if (isViewingAs.value) return;
   const v = (e.target.innerHTML || '').trim() || '(untitled)';
   threads.value[i].text = v;
   persist();
 }
 
 function add() {
-  if (!authed.value) return;
+  if (!authed.value || isViewingAs.value) return;
   threads.value.push({
     id: randomId(),
     text: 'New thread',
@@ -97,6 +112,7 @@ function add() {
 }
 
 function remove(thread) {
+  if (isViewingAs.value) return;
   threads.value = threads.value.filter(x => x.id !== thread.id);
   persist();
 }
@@ -123,7 +139,7 @@ function syncEditorsFromState() {
 let boundEls = [];
 function bindAll() {
   unbindAll();
-  if (!listEl.value) return;
+  if (!listEl.value || isViewingAs.value) return;
   boundEls = Array.from(listEl.value.querySelectorAll('.text'));
   boundEls.forEach(el => picker.bind(el));
 }
@@ -132,18 +148,23 @@ function unbindAll() {
   boundEls = [];
 }
 
+async function reload() {
+  if (!authed.value) return;
+  threads.value = await fetchThreads(viewingAsEmail.value);
+  await nextTick();
+  syncEditorsFromState();
+  bindAll();
+}
+
+watch(() => auth.viewingAs, reload);
+
 watch(() => threads.value.length, async () => {
   await nextTick();
   syncEditorsFromState();
   bindAll();
 });
 
-onMounted(async () => {
-  if (authed.value) threads.value = await fetchThreads();
-  await nextTick();
-  syncEditorsFromState();
-  bindAll();
-});
+onMounted(reload);
 onBeforeUnmount(() => { unbindAll(); });
 </script>
 
@@ -185,6 +206,13 @@ onBeforeUnmount(() => { unbindAll(); });
 .hdr-btn:hover:not(:disabled) { background: var(--gold-dim); color: var(--bg); }
 .hdr-btn:disabled { opacity: 0.4; cursor: default; }
 
+.viewing-as-badge {
+  font-size: 10px;
+  color: var(--gold-dim);
+  font-style: italic;
+  letter-spacing: 0.5px;
+}
+
 .threads-list {
   overflow-y: auto;
   padding: 8px 10px;
@@ -207,9 +235,6 @@ onBeforeUnmount(() => { unbindAll(); });
 .thread:focus-within { border-color: var(--gold-dim); }
 .thread.done .text { color: var(--text-dim); text-decoration: line-through; }
 
-/* Custom gold-dim checkbox.
-   The native input is visually hidden and the styled .check-box span
-   takes its place. accent-color isn't reliable across browsers, this is. */
 .check-wrap {
   position: relative;
   display: inline-flex;
@@ -241,7 +266,6 @@ onBeforeUnmount(() => { unbindAll(); });
   background: var(--gold-dim);
   border-color: var(--gold-dim);
 }
-/* Checkmark drawn with two borders on a rotated ::after. */
 .thread-check:checked + .check-box::after {
   content: '';
   position: absolute;

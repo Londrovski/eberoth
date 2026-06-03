@@ -4,6 +4,7 @@
       <span class="hdr-title">Notes</span>
       <span class="status" :class="{ saving }">
         <template v-if="!authed">Sign in</template>
+        <template v-else-if="isViewingAs">{{ viewingAsLabel }}'s notes — read only</template>
         <template v-else-if="saving">Saving...</template>
         <template v-else-if="lastSavedAt">Saved {{ relativeSaved }}</template>
       </span>
@@ -19,29 +20,25 @@
       >
         <span
           class="label"
-          @dblclick.stop="onRenameStart(tab, $event)"
-          @blur="onRenameEnd(tab, $event)"
+          @dblclick.stop="!isViewingAs && onRenameStart(tab, $event)"
+          @blur="!isViewingAs && onRenameEnd(tab, $event)"
           @keydown.enter.prevent="$event.target.blur()"
           @keydown.escape="onRenameCancel(tab, $event)"
         >{{ tab.label }}</span>
         <span
-          v-if="state.tabs.length > 1"
+          v-if="state.tabs.length > 1 && !isViewingAs"
           class="close"
           :title="'Close tab'"
           @click.stop="onDelete(tab)"
         >x</span>
       </button>
-      <button class="add-tab" :title="'New tab'" :disabled="!authed" @click="onAdd">+</button>
+      <button v-if="!isViewingAs" class="add-tab" :title="'New tab'" :disabled="!authed" @click="onAdd">+</button>
     </div>
 
     <div class="note-body-wrap">
-      <!-- IMPORTANT: no v-html here. The element is contenteditable and we
-           assign innerHTML imperatively on load + tab switch. Binding v-html
-           to a reactive value would re-render every keystroke and reset
-           the caret, causing characters to appear reversed. -->
       <div
         class="note-body"
-        :contenteditable="authed"
+        :contenteditable="authed && !isViewingAs"
         spellcheck="true"
         @blur="flush"
         ref="bodyEl"
@@ -61,6 +58,15 @@ import MentionPicker from 'components/shared/MentionPicker.vue';
 
 const auth = useAuthStore();
 const authed = computed(() => !!auth.user);
+const isViewingAs = computed(() => auth.isViewingAs);
+const viewingAsLabel = computed(() => {
+  const b = auth.viewingAs;
+  if (!b) return '';
+  return b.charAt(0).toUpperCase() + b.slice(1);
+});
+const viewingAsEmail = computed(() =>
+  isViewingAs.value ? auth.viewingAs + '@compendium.local' : null
+);
 
 const state = reactive({ tabs: [], activeId: null });
 const saving = ref(false);
@@ -79,6 +85,7 @@ function syncEditorFromState() {
 
 const picker = useMentionPicker({
   onInput(el) {
+    if (isViewingAs.value) return;
     if (activeTab.value) {
       activeTab.value.html = el.innerHTML;
       scheduleSave();
@@ -87,7 +94,7 @@ const picker = useMentionPicker({
 });
 
 async function flush() {
-  if (!authed.value) return;
+  if (!authed.value || isViewingAs.value) return;
   if (activeTab.value && bodyEl.value) activeTab.value.html = bodyEl.value.innerHTML;
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   saving.value = true;
@@ -97,7 +104,7 @@ async function flush() {
 }
 
 function scheduleSave() {
-  if (!authed.value) return;
+  if (!authed.value || isViewingAs.value) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(flush, 1200);
 }
@@ -105,7 +112,7 @@ function scheduleSave() {
 function onTabClick(tab) {
   if (suppressNextSelect) { suppressNextSelect = false; return; }
   if (tab.id === state.activeId) return;
-  if (activeTab.value && bodyEl.value) {
+  if (!isViewingAs.value && activeTab.value && bodyEl.value) {
     activeTab.value.html = bodyEl.value.innerHTML;
   }
   state.activeId = tab.id;
@@ -114,11 +121,11 @@ function onTabClick(tab) {
 watch(() => state.activeId, async () => {
   await nextTick();
   syncEditorFromState();
-  flush();
+  if (!isViewingAs.value) flush();
 });
 
 function onAdd() {
-  if (!authed.value) return;
+  if (!authed.value || isViewingAs.value) return;
   if (activeTab.value && bodyEl.value) activeTab.value.html = bodyEl.value.innerHTML;
   const t = newTab('New');
   state.tabs.push(t);
@@ -127,6 +134,7 @@ function onAdd() {
 }
 
 function onRenameStart(tab, e) {
+  if (isViewingAs.value) return;
   suppressNextSelect = true;
   const el = e.target;
   el.contentEditable = 'true';
@@ -139,6 +147,7 @@ function onRenameStart(tab, e) {
   sel.addRange(range);
 }
 function onRenameEnd(tab, e) {
+  if (isViewingAs.value) return;
   const el = e.target;
   el.contentEditable = 'false';
   el.classList.remove('editing');
@@ -153,7 +162,7 @@ function onRenameCancel(tab, e) {
 }
 
 function onDelete(tab) {
-  if (!authed.value) return;
+  if (!authed.value || isViewingAs.value) return;
   if (state.tabs.length <= 1) return;
   if (!window.confirm('Delete "' + tab.label + '"?')) return;
   const idx = state.tabs.findIndex(t => t.id === tab.id);
@@ -175,14 +184,21 @@ const relativeSaved = computed(() => {
   return 'a while ago';
 });
 
-onMounted(async () => {
+async function reload() {
   if (!authed.value) return;
-  const loaded = await fetchNotepad();
+  const loaded = await fetchNotepad(viewingAsEmail.value);
   state.tabs = loaded.tabs;
   state.activeId = loaded.activeId;
   await nextTick();
   syncEditorFromState();
-  if (bodyEl.value) picker.bind(bodyEl.value);
+  if (bodyEl.value && !isViewingAs.value) picker.bind(bodyEl.value);
+}
+
+watch(() => auth.viewingAs, reload);
+
+onMounted(async () => {
+  await reload();
+  if (bodyEl.value && !isViewingAs.value) picker.bind(bodyEl.value);
 });
 
 onBeforeUnmount(() => {
@@ -292,8 +308,6 @@ onBeforeUnmount(() => {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
-/* Placeholder text is DM-editable via DM Tools → Placeholders.
-   The var is emitted pre-quoted by app-settings store. */
 .note-body:empty:before {
   content: var(--placeholder-notepad, "Write your notes here. Use @ to link.");
   color: var(--text-dim);

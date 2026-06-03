@@ -2,15 +2,20 @@
 // Single jsonb-array row per user_email in user_threads.
 // Shape: [{id, text, done, position}]
 // RLS: read/write own; DM can read.
+//
+// fetchThreads(emailOverride?) — pass a player email to read their threads
+//   (used by DM view-as). Omit to read the signed-in user's own threads.
+// saveThreads(threads, emailOverride?) — blocked when emailOverride is set
+//   (DM cannot overwrite a player's threads while viewing-as).
 import { supabase } from 'boot/supabase';
 
-export async function fetchThreads() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+export async function fetchThreads(emailOverride) {
+  const email = emailOverride || await _ownEmail();
+  if (!email) return [];
   const { data, error } = await supabase
     .from('user_threads')
     .select('threads')
-    .eq('user_email', user.email)
+    .eq('user_email', email)
     .maybeSingle();
   if (error) {
     // eslint-disable-next-line no-console
@@ -28,13 +33,15 @@ export async function fetchThreads() {
     .sort((a, b) => a.position - b.position);
 }
 
-export async function saveThreads(threads) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+export async function saveThreads(threads, emailOverride) {
+  // Block saves when viewing as another player.
+  if (emailOverride) return;
+  const email = await _ownEmail();
+  if (!email) return;
   const { error } = await supabase
     .from('user_threads')
     .upsert({
-      user_email: user.email,
+      user_email: email,
       threads,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_email' });
@@ -42,6 +49,11 @@ export async function saveThreads(threads) {
     // eslint-disable-next-line no-console
     console.warn('[threads] save failed', error);
   }
+}
+
+async function _ownEmail() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user ? user.email : null;
 }
 
 function randomId() {

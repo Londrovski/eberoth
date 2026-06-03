@@ -1,6 +1,11 @@
 // Multi-tab personal notepad.
 // Single jsonb row per user_email in user_notepad.
 // Shape: { tabs: [{id, label, html, position}], activeId }
+//
+// fetchNotepad(emailOverride?) — pass a player email to read their notepad
+//   (used by DM view-as). Omit to read the signed-in user's own notepad.
+// saveNotepad(state, emailOverride?) — blocked when emailOverride is set
+//   (DM cannot overwrite a player's notepad while viewing-as).
 import { supabase } from 'boot/supabase';
 
 const DEFAULT_STATE = () => ({
@@ -12,13 +17,13 @@ const DEFAULT_STATE = () => ({
   activeId: 'campaign'
 });
 
-export async function fetchNotepad() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return DEFAULT_STATE();
+export async function fetchNotepad(emailOverride) {
+  const email = emailOverride || await _ownEmail();
+  if (!email) return DEFAULT_STATE();
   const { data, error } = await supabase
     .from('user_notepad')
     .select('notepad')
-    .eq('user_email', user.email)
+    .eq('user_email', email)
     .maybeSingle();
   if (error) {
     // eslint-disable-next-line no-console
@@ -28,13 +33,15 @@ export async function fetchNotepad() {
   return normalise(data && data.notepad);
 }
 
-export async function saveNotepad(state) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+export async function saveNotepad(state, emailOverride) {
+  // Block saves when viewing as another player.
+  if (emailOverride) return;
+  const email = await _ownEmail();
+  if (!email) return;
   const { error } = await supabase
     .from('user_notepad')
     .upsert({
-      user_email: user.email,
+      user_email: email,
       notepad: state,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_email' });
@@ -42,6 +49,11 @@ export async function saveNotepad(state) {
     // eslint-disable-next-line no-console
     console.warn('[notepad] save failed', error);
   }
+}
+
+async function _ownEmail() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user ? user.email : null;
 }
 
 function normalise(blob) {
