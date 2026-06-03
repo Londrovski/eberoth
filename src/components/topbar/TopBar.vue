@@ -1,5 +1,5 @@
 <template>
-  <q-header bordered class="eb-topbar">
+  <q-header bordered class="eb-topbar" :class="{ 'eb-topbar--viewing-as': viewer.isViewingAs }">
     <q-toolbar class="q-px-md eb-toolbar">
 
       <!-- Brand -->
@@ -28,6 +28,13 @@
           <RealtimeDot />
           <DmToolsMenu />
           <ViewAsSelect />
+          <!-- Inline viewing-as label -->
+          <transition name="label-fade">
+            <span v-if="viewer.isViewingAs" class="viewing-as-label">
+              👁 <strong>{{ viewingAsLabel }}</strong>
+              <button class="viewing-as-exit" @click="exitViewAs">Exit</button>
+            </span>
+          </transition>
         </template>
         <UserZoomControl class="user-zoom-control" />
         <q-chip dense outline class="role-chip">{{ roleLabel }}</q-chip>
@@ -37,51 +44,28 @@
 
       <!-- Mobile toolbar -->
       <div class="mob-nav lt-sm">
-
-        <!-- Home: exact match only so /notes doesn't also activate it -->
         <router-link :to="{ name: 'home' }" custom v-slot="{ isExactActive, navigate }">
-          <button
-            class="mob-nav-btn"
-            :class="{ active: isExactActive }"
-            @click="navigate"
-            aria-label="Home"
-          >
+          <button class="mob-nav-btn" :class="{ active: isExactActive }" @click="navigate" aria-label="Home">
             <q-icon name="home" size="16px" />
             <span>Home</span>
           </button>
         </router-link>
-
-        <!-- Notes: exact match -->
         <router-link :to="{ name: 'notes' }" custom v-slot="{ isExactActive, navigate }">
-          <button
-            class="mob-nav-btn"
-            :class="{ active: isExactActive }"
-            @click="navigate"
-            aria-label="Notes"
-          >
+          <button class="mob-nav-btn" :class="{ active: isExactActive }" @click="navigate" aria-label="Notes">
             <q-icon name="menu_book" size="16px" />
             <span>Notes</span>
           </button>
         </router-link>
-
-        <!-- Realtime dot (DM only) -->
+        <!-- Viewing-as label on mobile -->
+        <transition name="label-fade">
+          <span v-if="viewer.isDM && viewer.isViewingAs" class="viewing-as-label mob-viewing-as">
+            👁 <strong>{{ viewingAsLabel }}</strong>
+            <button class="viewing-as-exit" @click="exitViewAs">Exit</button>
+          </span>
+        </transition>
         <RealtimeDot v-if="viewer.isDM" class="mob-realtime" />
-
-        <!-- DM gear (DM only) -->
-        <q-btn v-if="viewer.isDM"
-          flat dense round icon="settings" size="sm"
-          class="mobile-dm-btn"
-          aria-label="DM controls"
-          @click="dmPanelOpen = true"
-        />
-
-        <!-- Hamburger -->
-        <q-btn
-          flat dense round icon="menu" size="sm"
-          class="mobile-menu-btn"
-          aria-label="More options"
-          @click="drawerOpen = true"
-        />
+        <q-btn v-if="viewer.isDM" flat dense round icon="settings" size="sm" class="mobile-dm-btn" aria-label="DM controls" @click="dmPanelOpen = true" />
+        <q-btn flat dense round icon="menu" size="sm" class="mobile-menu-btn" aria-label="More options" @click="drawerOpen = true" />
       </div>
 
     </q-toolbar>
@@ -95,7 +79,6 @@
       <span class="eberoth drawer-title">Eberoth</span>
     </div>
     <q-separator style="background:var(--border)" />
-
     <q-list v-if="viewer.isDM">
       <q-item clickable v-ripple :to="{ name: 'admin-usage' }" class="drawer-item" @click="drawerOpen = false">
         <q-item-section avatar><q-icon name="admin_panel_settings" /></q-item-section>
@@ -103,23 +86,19 @@
       </q-item>
     </q-list>
     <q-separator v-if="viewer.isDM" style="background:var(--border); margin: 4px 0" />
-
     <div class="q-pa-sm ext-links" v-if="zoomUrl || dndbeyondUrl">
       <a v-if="zoomUrl"       :href="zoomUrl"     target="_blank" rel="noopener" class="drawer-ext-btn zoom-btn"><q-icon name="videocam" size="15px" /><span>Zoom</span></a>
       <a v-if="dndbeyondUrl" :href="dndbeyondUrl" target="_blank" rel="noopener" class="drawer-ext-btn dnd-btn"><q-icon name="casino"   size="15px" /><span>D&amp;D Beyond</span></a>
     </div>
     <q-separator v-if="zoomUrl || dndbeyondUrl" style="background:var(--border); margin: 4px 0" />
-
     <div v-if="viewer.isDM" class="q-pa-sm">
       <div class="drawer-section-label">View as</div>
       <ViewAsSelect />
     </div>
     <q-separator v-if="viewer.isDM" style="background:var(--border); margin: 4px 0" />
-
     <div class="q-pa-md row items-center justify-between">
       <q-chip dense outline class="role-chip">{{ roleLabel }}</q-chip>
-      <q-btn flat dense no-caps icon="logout" label="Log out"
-        class="logout-btn" :disable="signingOut" @click="onSignOut" />
+      <q-btn flat dense no-caps icon="logout" label="Log out" class="logout-btn" :disable="signingOut" @click="onSignOut" />
     </div>
   </q-drawer>
 
@@ -143,6 +122,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from 'src/stores/auth';
 import { useViewer } from 'src/composables/useViewer';
 import { useAppSettingsStore } from 'src/stores/app-settings';
+import { useEntitiesStore } from 'src/stores/entities';
 import { characterFromBucket } from 'src/config/players';
 import ViewAsSelect    from 'components/topbar/ViewAsSelect.vue';
 import DmToolsMenu     from 'components/topbar/DmToolsMenu.vue';
@@ -152,6 +132,7 @@ import RealtimeDot     from 'components/topbar/RealtimeDot.vue';
 
 const router      = useRouter();
 const auth        = useAuthStore();
+const entities    = useEntitiesStore();
 const viewer      = useViewer();
 const appSettings = useAppSettingsStore();
 const signingOut  = ref(false);
@@ -163,10 +144,22 @@ const roleLabel = computed(() => {
   if (auth.isViewingAs) return 'DM > ' + (characterFromBucket(auth.viewingAs) || auth.viewingAs);
   return characterFromBucket(auth.actualBucket) || auth.actualBucket;
 });
+
+const viewingAsLabel = computed(() => {
+  const b = auth.viewingAs;
+  if (!b) return '';
+  return characterFromBucket(b) || (b.charAt(0).toUpperCase() + b.slice(1));
+});
+
 const zoomUrl      = computed(() => appSettings.externalZoomUrl || '');
 const dndbeyondUrl = computed(() => appSettings.dndbeyondUrlFor(
   auth.isViewingAs ? auth.viewingAs : auth.actualBucket
 ));
+
+function exitViewAs() {
+  auth.setViewingAs(null);
+  entities.load();
+}
 
 async function onSignOut() {
   if (signingOut.value) return;
@@ -178,7 +171,18 @@ async function onSignOut() {
 </script>
 
 <style scoped>
-.eb-topbar  { background: var(--bg-panel); color: var(--text); border-bottom: 1px solid var(--border); }
+.eb-topbar {
+  background: var(--bg-panel);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+/* Blue tint when viewing as a player */
+.eb-topbar--viewing-as {
+  background: rgba(20, 60, 140, 0.92) !important;
+  border-bottom-color: rgba(80, 130, 255, 0.4) !important;
+}
+
 .eb-toolbar { min-height: 64px; }
 
 .eberoth {
@@ -203,6 +207,39 @@ async function onSignOut() {
 .logout-btn { color: var(--gold-dim); font-size: 0.85rem; letter-spacing: 0.04em; padding: 6px 10px; }
 .logout-btn:hover { color: var(--gold); }
 
+/* Viewing-as inline label */
+.viewing-as-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(200, 220, 255, 0.9);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.viewing-as-label strong { color: #fff; font-weight: 600; }
+.viewing-as-exit {
+  background: transparent;
+  border: 1px solid rgba(150, 190, 255, 0.4);
+  color: rgba(200, 220, 255, 0.85);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.4px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.viewing-as-exit:hover {
+  background: rgba(100, 150, 255, 0.2);
+  border-color: rgba(150, 190, 255, 0.7);
+  color: #fff;
+}
+.label-fade-enter-active,
+.label-fade-leave-active { transition: opacity 0.25s ease; }
+.label-fade-enter-from,
+.label-fade-leave-to { opacity: 0; }
+
 @media (max-width: 600px) {
   .eb-toolbar { min-height: 52px; padding: 0 8px; gap: 6px; }
   .eberoth    { font-size: 18px; letter-spacing: 0.03em; }
@@ -215,6 +252,13 @@ async function onSignOut() {
   gap: 2px;
   margin-left: 6px;
   min-width: 0;
+}
+.mob-viewing-as {
+  font-size: 11px;
+  margin-left: 4px;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mob-nav-btn {
