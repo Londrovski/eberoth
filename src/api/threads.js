@@ -1,12 +1,10 @@
 // Personal threads — chasing items.
 // Single jsonb-array row per user_email in user_threads.
 // Shape: [{id, text, done, position}]
-// RLS: read/write own; DM can read.
+// RLS: read/write own; DM can read and write any row.
 //
-// fetchThreads(emailOverride?) — pass a player email to read their threads
-//   (used by DM view-as). Omit to read the signed-in user's own threads.
-// saveThreads(threads, emailOverride?) — blocked when emailOverride is set
-//   (DM cannot overwrite a player's threads while viewing-as).
+// fetchThreads(emailOverride?) — pass a player email to read their threads.
+// saveThreads(threads, emailOverride?) — pass a player email to write their threads.
 import { supabase } from 'boot/supabase';
 
 export async function fetchThreads(emailOverride) {
@@ -34,9 +32,7 @@ export async function fetchThreads(emailOverride) {
 }
 
 export async function saveThreads(threads, emailOverride) {
-  // Block saves when viewing as another player.
-  if (emailOverride) return;
-  const email = await _ownEmail();
+  const email = emailOverride || await _ownEmail();
   if (!email) return;
   const { error } = await supabase
     .from('user_threads')

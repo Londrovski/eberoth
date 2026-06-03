@@ -4,7 +4,7 @@
       <span class="hdr-title">Notes</span>
       <span class="status" :class="{ saving }">
         <template v-if="!authed">Sign in</template>
-        <template v-else-if="isViewingAs">{{ viewingAsLabel }}'s notes — read only</template>
+        <template v-else-if="isViewingAs">{{ viewingAsLabel }}'s notes</template>
         <template v-else-if="saving">Saving...</template>
         <template v-else-if="lastSavedAt">Saved {{ relativeSaved }}</template>
       </span>
@@ -20,25 +20,25 @@
       >
         <span
           class="label"
-          @dblclick.stop="!isViewingAs && onRenameStart(tab, $event)"
-          @blur="!isViewingAs && onRenameEnd(tab, $event)"
+          @dblclick.stop="onRenameStart(tab, $event)"
+          @blur="onRenameEnd(tab, $event)"
           @keydown.enter.prevent="$event.target.blur()"
           @keydown.escape="onRenameCancel(tab, $event)"
         >{{ tab.label }}</span>
         <span
-          v-if="state.tabs.length > 1 && !isViewingAs"
+          v-if="state.tabs.length > 1"
           class="close"
           :title="'Close tab'"
           @click.stop="onDelete(tab)"
         >x</span>
       </button>
-      <button v-if="!isViewingAs" class="add-tab" :title="'New tab'" :disabled="!authed" @click="onAdd">+</button>
+      <button class="add-tab" :title="'New tab'" :disabled="!authed" @click="onAdd">+</button>
     </div>
 
     <div class="note-body-wrap">
       <div
         class="note-body"
-        :contenteditable="authed && !isViewingAs"
+        :contenteditable="authed"
         spellcheck="true"
         @blur="flush"
         ref="bodyEl"
@@ -85,7 +85,6 @@ function syncEditorFromState() {
 
 const picker = useMentionPicker({
   onInput(el) {
-    if (isViewingAs.value) return;
     if (activeTab.value) {
       activeTab.value.html = el.innerHTML;
       scheduleSave();
@@ -94,17 +93,17 @@ const picker = useMentionPicker({
 });
 
 async function flush() {
-  if (!authed.value || isViewingAs.value) return;
+  if (!authed.value) return;
   if (activeTab.value && bodyEl.value) activeTab.value.html = bodyEl.value.innerHTML;
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   saving.value = true;
-  await saveNotepad({ tabs: state.tabs, activeId: state.activeId });
+  await saveNotepad({ tabs: state.tabs, activeId: state.activeId }, viewingAsEmail.value);
   saving.value = false;
   lastSavedAt.value = new Date();
 }
 
 function scheduleSave() {
-  if (!authed.value || isViewingAs.value) return;
+  if (!authed.value) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(flush, 1200);
 }
@@ -112,7 +111,7 @@ function scheduleSave() {
 function onTabClick(tab) {
   if (suppressNextSelect) { suppressNextSelect = false; return; }
   if (tab.id === state.activeId) return;
-  if (!isViewingAs.value && activeTab.value && bodyEl.value) {
+  if (activeTab.value && bodyEl.value) {
     activeTab.value.html = bodyEl.value.innerHTML;
   }
   state.activeId = tab.id;
@@ -121,11 +120,11 @@ function onTabClick(tab) {
 watch(() => state.activeId, async () => {
   await nextTick();
   syncEditorFromState();
-  if (!isViewingAs.value) flush();
+  flush();
 });
 
 function onAdd() {
-  if (!authed.value || isViewingAs.value) return;
+  if (!authed.value) return;
   if (activeTab.value && bodyEl.value) activeTab.value.html = bodyEl.value.innerHTML;
   const t = newTab('New');
   state.tabs.push(t);
@@ -134,7 +133,6 @@ function onAdd() {
 }
 
 function onRenameStart(tab, e) {
-  if (isViewingAs.value) return;
   suppressNextSelect = true;
   const el = e.target;
   el.contentEditable = 'true';
@@ -147,7 +145,6 @@ function onRenameStart(tab, e) {
   sel.addRange(range);
 }
 function onRenameEnd(tab, e) {
-  if (isViewingAs.value) return;
   const el = e.target;
   el.contentEditable = 'false';
   el.classList.remove('editing');
@@ -162,7 +159,7 @@ function onRenameCancel(tab, e) {
 }
 
 function onDelete(tab) {
-  if (!authed.value || isViewingAs.value) return;
+  if (!authed.value) return;
   if (state.tabs.length <= 1) return;
   if (!window.confirm('Delete "' + tab.label + '"?')) return;
   const idx = state.tabs.findIndex(t => t.id === tab.id);
@@ -191,14 +188,14 @@ async function reload() {
   state.activeId = loaded.activeId;
   await nextTick();
   syncEditorFromState();
-  if (bodyEl.value && !isViewingAs.value) picker.bind(bodyEl.value);
+  if (bodyEl.value) picker.bind(bodyEl.value);
 }
 
 watch(() => auth.viewingAs, reload);
 
 onMounted(async () => {
   await reload();
-  if (bodyEl.value && !isViewingAs.value) picker.bind(bodyEl.value);
+  if (bodyEl.value) picker.bind(bodyEl.value);
 });
 
 onBeforeUnmount(() => {
@@ -214,7 +211,6 @@ onBeforeUnmount(() => {
   background: var(--bg-panel);
   min-height: 0;
 }
-
 .drawer-header {
   padding: 12px 14px 8px;
   border-bottom: 1px solid var(--border);
@@ -236,7 +232,6 @@ onBeforeUnmount(() => {
   font-weight: normal;
 }
 .drawer-header .status.saving { color: var(--gold-dim); }
-
 .notes-tabs {
   display: flex;
   background: var(--bg-panel-2);
@@ -287,7 +282,6 @@ onBeforeUnmount(() => {
   font-family: inherit;
 }
 .add-tab:disabled { opacity: 0.4; cursor: default; }
-
 .note-body-wrap {
   flex: 1;
   position: relative;

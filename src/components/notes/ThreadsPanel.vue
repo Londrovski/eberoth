@@ -3,15 +3,13 @@
     <header class="drawer-header">
       <span class="hdr-title">Active Threads</span>
       <span v-if="isViewingAs" class="viewing-as-badge">{{ viewingAsLabel }}'s threads</span>
-      <button v-else class="hdr-btn" :disabled="!authed" :title="'Add thread'" @click="add">+</button>
+      <button class="hdr-btn" :disabled="!authed" :title="'Add thread'" @click="add">+</button>
     </header>
 
     <div class="threads-list" ref="listEl">
       <div v-if="!authed" class="threads-empty">Sign in to track threads.</div>
 
       <template v-else>
-        <!-- No v-html on .text — assigning innerHTML imperatively in
-             nextTick after the row mounts. Otherwise typing resets caret. -->
         <div
           v-for="(t, i) in threads"
           :key="t.id"
@@ -23,21 +21,20 @@
               type="checkbox"
               v-model="t.done"
               class="thread-check"
-              :disabled="isViewingAs"
               @change="persist"
             />
             <span class="check-box" />
           </label>
           <span
             class="text"
-            :contenteditable="!isViewingAs"
+            contenteditable="true"
             spellcheck="false"
             :data-idx="i"
             :data-thread-id="t.id"
             @blur="onTextBlur(i, $event)"
             @keydown.enter.prevent="$event.target.blur()"
           ></span>
-          <button v-if="!isViewingAs" class="del" :title="'Remove'" @click="remove(t)">x</button>
+          <button class="del" :title="'Remove'" @click="remove(t)">x</button>
         </div>
         <div v-if="!threads.length" class="threads-empty">
           <template v-if="isViewingAs">No threads for this player.</template>
@@ -74,17 +71,15 @@ const listEl = ref(null);
 
 let saveTimer = null;
 function persist() {
-  if (isViewingAs.value) return; // read-only when viewing-as
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     threads.value.forEach((t, i) => { t.position = i; });
-    await saveThreads(threads.value);
+    await saveThreads(threads.value, viewingAsEmail.value);
   }, 300);
 }
 
 const picker = useMentionPicker({
   onInput(el) {
-    if (isViewingAs.value) return;
     const idx = parseInt(el.getAttribute('data-idx'), 10);
     if (Number.isInteger(idx) && threads.value[idx]) {
       threads.value[idx].text = el.innerHTML;
@@ -94,14 +89,13 @@ const picker = useMentionPicker({
 });
 
 function onTextBlur(i, e) {
-  if (isViewingAs.value) return;
   const v = (e.target.innerHTML || '').trim() || '(untitled)';
   threads.value[i].text = v;
   persist();
 }
 
 function add() {
-  if (!authed.value || isViewingAs.value) return;
+  if (!authed.value) return;
   threads.value.push({
     id: randomId(),
     text: 'New thread',
@@ -112,7 +106,6 @@ function add() {
 }
 
 function remove(thread) {
-  if (isViewingAs.value) return;
   threads.value = threads.value.filter(x => x.id !== thread.id);
   persist();
 }
@@ -139,7 +132,7 @@ function syncEditorsFromState() {
 let boundEls = [];
 function bindAll() {
   unbindAll();
-  if (!listEl.value || isViewingAs.value) return;
+  if (!listEl.value) return;
   boundEls = Array.from(listEl.value.querySelectorAll('.text'));
   boundEls.forEach(el => picker.bind(el));
 }
@@ -157,7 +150,6 @@ async function reload() {
 }
 
 watch(() => auth.viewingAs, reload);
-
 watch(() => threads.value.length, async () => {
   await nextTick();
   syncEditorsFromState();
@@ -175,7 +167,6 @@ onBeforeUnmount(() => { unbindAll(); });
   height: 100%;
   background: var(--bg-panel);
 }
-
 .drawer-header {
   padding: 12px 14px 8px;
   border-bottom: 1px solid var(--border);
@@ -205,14 +196,12 @@ onBeforeUnmount(() => { unbindAll(); });
 }
 .hdr-btn:hover:not(:disabled) { background: var(--gold-dim); color: var(--bg); }
 .hdr-btn:disabled { opacity: 0.4; cursor: default; }
-
 .viewing-as-badge {
   font-size: 10px;
   color: var(--gold-dim);
   font-style: italic;
   letter-spacing: 0.5px;
 }
-
 .threads-list {
   overflow-y: auto;
   padding: 8px 10px;
@@ -234,7 +223,6 @@ onBeforeUnmount(() => { unbindAll(); });
 }
 .thread:focus-within { border-color: var(--gold-dim); }
 .thread.done .text { color: var(--text-dim); text-decoration: line-through; }
-
 .check-wrap {
   position: relative;
   display: inline-flex;
@@ -277,7 +265,6 @@ onBeforeUnmount(() => { unbindAll(); });
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-
 .thread .text {
   flex: 1;
   outline: none;
@@ -311,7 +298,6 @@ onBeforeUnmount(() => { unbindAll(); });
   font-family: inherit;
 }
 .thread .del:hover { color: var(--red); }
-
 .threads-empty {
   color: var(--text-dim);
   font-style: italic;

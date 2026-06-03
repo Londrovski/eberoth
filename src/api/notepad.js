@@ -2,10 +2,8 @@
 // Single jsonb row per user_email in user_notepad.
 // Shape: { tabs: [{id, label, html, position}], activeId }
 //
-// fetchNotepad(emailOverride?) — pass a player email to read their notepad
-//   (used by DM view-as). Omit to read the signed-in user's own notepad.
-// saveNotepad(state, emailOverride?) — blocked when emailOverride is set
-//   (DM cannot overwrite a player's notepad while viewing-as).
+// fetchNotepad(emailOverride?) — pass a player email to read their notepad.
+// saveNotepad(state, emailOverride?) — pass a player email to write their notepad.
 import { supabase } from 'boot/supabase';
 
 const DEFAULT_STATE = () => ({
@@ -34,9 +32,7 @@ export async function fetchNotepad(emailOverride) {
 }
 
 export async function saveNotepad(state, emailOverride) {
-  // Block saves when viewing as another player.
-  if (emailOverride) return;
-  const email = await _ownEmail();
+  const email = emailOverride || await _ownEmail();
   if (!email) return;
   const { error } = await supabase
     .from('user_notepad')
