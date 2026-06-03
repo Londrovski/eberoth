@@ -11,6 +11,7 @@
   ],
   members: [
     { name: 'King Gaelan Arveth', role: 'The King.' },
+    { name: 'Princess Elowen Arveth', role: 'The King\'s daughter.' },
     { name: 'Byren Holt', role: 'Lord Chancellor.' },
     { name: 'High Inquisitor Mael Dross', role: 'High Inquisitor.' }
   ]

@@ -10,5 +10,6 @@ window.MANIFEST = [
   'jorik',
   'byren-holt',
   'mael-dross',
-  'brotherhood-of-the-patient-dawn'
+  'brotherhood-of-the-patient-dawn',
+  'aeonarchs'
 ];
