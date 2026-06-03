@@ -1,28 +1,36 @@
 <template>
   <div class="sessions-list-panel">
+    <q-banner v-if="error" class="bg-negative text-white q-mb-md">
+      Failed to load sessions: {{ error.message }}
+    </q-banner>
+
     <div v-if="loading" class="text-center q-pa-xl">
       <q-spinner size="32px" />
     </div>
 
-    <q-banner v-else-if="error" class="bg-negative text-white q-mb-md">
-      Failed to load sessions: {{ error.message }}
-    </q-banner>
-
-    <div v-else-if="sessions.length" class="session-list">
-      <div
+    <q-list separator v-else-if="sessions.length" class="session-list">
+      <q-item
         v-for="s in sessions"
         :key="s.id"
-        class="session-row"
+        clickable
+        v-ripple
+        class="session-item"
         @click="open(s.id)"
       >
-        <div class="session-num">{{ s.number }}</div>
-        <div class="session-info">
-          <div class="session-title">{{ s.title || ('Session ' + s.number) }}</div>
-          <div v-if="s.row_summary" class="session-summary">{{ s.row_summary }}</div>
-        </div>
-        <div class="session-chevron">&rsaquo;</div>
-      </div>
-    </div>
+        <q-item-section avatar>
+          <div class="session-number">{{ s.number }}</div>
+        </q-item-section>
+        <q-item-section>
+          <q-item-label class="session-title">{{ s.title || ('Session ' + s.number) }}</q-item-label>
+          <q-item-label caption class="session-caption" v-if="s.row_summary || s.date">
+            {{ s.row_summary || s.date }}
+          </q-item-label>
+        </q-item-section>
+        <q-item-section side>
+          <q-icon name="chevron_right" class="session-chevron" />
+        </q-item-section>
+      </q-item>
+    </q-list>
 
     <div v-else class="empty">No sessions yet.</div>
   </div>
@@ -63,61 +71,49 @@ function open(sessionId) {
 <style scoped>
 .sessions-list-panel { padding: 0; }
 
-.session-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.session-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background 0.12s ease;
-}
-.session-row:hover { background: rgba(201, 169, 97, 0.04); }
-
-.session-num {
-  font-size: 1.1rem;
+.session-number {
+  font-size: 1.4rem;
   color: var(--gold-dim);
-  min-width: 20px;
+  min-width: 40px;
   text-align: center;
-  line-height: 1.4;
-  flex-shrink: 0;
-  opacity: 0.55;
-  padding-top: 1px;
+  opacity: 0.7;
 }
 
-.session-info {
-  flex: 1;
-  min-width: 0;
+.session-list :deep(.q-separator) {
+  background: var(--border);
+}
+
+.session-item {
+  background: transparent !important;
+  min-height: 56px;
+  padding: 10px 16px;
+}
+.session-item:hover {
+  background: rgba(201, 169, 97, 0.04) !important;
 }
 
 .session-title {
-  font-size: 1rem;
-  color: var(--gold);
-  font-weight: 500;
-  line-height: 1.3;
-  margin-bottom: 3px;
+  color: var(--gold) !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
 }
 
-.session-summary {
-  font-size: 0.82rem;
-  color: var(--text-dim);
-  font-style: italic;
-  line-height: 1.5;
+.session-caption {
+  color: var(--text-dim) !important;
+  font-style: italic !important;
+  font-size: 0.82rem !important;
+  line-height: 1.5 !important;
+  opacity: 1 !important;
 }
 
 .session-chevron {
-  font-size: 1.2rem;
-  color: var(--gold-dim);
-  flex-shrink: 0;
-  line-height: 1.4;
-  opacity: 0.5;
+  color: var(--gold-dim) !important;
+  opacity: 0.6;
 }
-.session-row:hover .session-chevron { opacity: 0.9; }
+.session-item:hover .session-chevron {
+  opacity: 1;
+}
 
 .empty {
   color: var(--text-dim);
