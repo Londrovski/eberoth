@@ -1,8 +1,9 @@
 <template>
   <section class="notes-section q-mt-md">
-    <div class="section-label">Your notes</div>
-    <!-- No v-html: writing to the element while it's focused resets the
-         caret. We push HTML in imperatively on load. -->
+    <div class="section-label">
+      <span v-if="isViewingAs">{{ viewingAsLabel }}'s notes</span>
+      <span v-else>Your notes</span>
+    </div>
     <div
       class="notes-input"
       :contenteditable="authed"
@@ -32,6 +33,15 @@ const props = defineProps({
 
 const auth = useAuthStore();
 const authed = computed(() => !!auth.user);
+const isViewingAs = computed(() => auth.isViewingAs);
+const viewingAsLabel = computed(() => {
+  const b = auth.viewingAs;
+  if (!b) return '';
+  return b.charAt(0).toUpperCase() + b.slice(1);
+});
+const viewingAsEmail = computed(() =>
+  isViewingAs.value ? auth.viewingAs + '@compendium.local' : null
+);
 
 const saving = ref(false);
 const lastSavedAt = ref(null);
@@ -49,7 +59,7 @@ const picker = useMentionPicker({
 async function load(id) {
   if (!authed.value) return;
   loadedFor = id;
-  const v = await notesApi.fetch(id);
+  const v = await notesApi.fetch(id, viewingAsEmail.value);
   if (loadedFor !== id) return;
   currentHtml = v || '';
   lastSavedAt.value = v ? new Date() : null;
@@ -62,7 +72,7 @@ async function flush() {
   if (bodyEl.value) currentHtml = bodyEl.value.innerHTML;
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   saving.value = true;
-  await notesApi.save(props.entityId, currentHtml || '');
+  await notesApi.save(props.entityId, currentHtml || '', viewingAsEmail.value);
   saving.value = false;
   lastSavedAt.value = new Date();
 }
@@ -73,12 +83,20 @@ function debouncedSave() {
   saveTimer = setTimeout(flush, 1500);
 }
 
+// Reload when entityId changes or when DM switches who they're viewing as.
 watch(() => props.entityId, async (id) => {
   currentHtml = '';
   lastSavedAt.value = null;
   if (bodyEl.value) bodyEl.value.innerHTML = '';
   if (id) await load(id);
 }, { immediate: false });
+
+watch(() => auth.viewingAs, async () => {
+  currentHtml = '';
+  lastSavedAt.value = null;
+  if (bodyEl.value) bodyEl.value.innerHTML = '';
+  if (props.entityId) await load(props.entityId);
+});
 
 onMounted(async () => {
   if (props.entityId) await load(props.entityId);
@@ -123,7 +141,6 @@ const relativeSaved = computed(() => {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
-/* Placeholder driven by DM Tools → Placeholders. */
 .notes-input:empty:before {
   content: var(--placeholder-detail-notes, "Personal notes about this entity. Only you can see these.");
   color: var(--text-dim);
