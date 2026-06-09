@@ -14,7 +14,7 @@ const props = defineProps({
   fill:   { type: Boolean, default: false }
 });
 
-const IMAGE_BASE = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/';
+const IMAGE_BASE = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/';
 
 function resolveUrl(raw) {
   if (!raw) return null;
