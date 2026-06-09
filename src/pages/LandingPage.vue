@@ -42,7 +42,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from 'src/stores/auth';
 
-const LOGO = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/eberoth%20logo.png';
+const LOGO = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/eberoth%20logo.png';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -73,7 +73,7 @@ async function onSubmit() {
   background-color: var(--bg);
   background-image:
     linear-gradient(180deg, rgba(11,9,5,0.55) 0%, rgba(11,9,5,0.85) 100%),
-    url('https://raw.githubusercontent.com/Londrovski/eberoth/main/The%20Descending%20Horizon.png');
+    url('https://raw.githubusercontent.com/Londrovski/eberoth/main/images/The%20Descending%20Horizon.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

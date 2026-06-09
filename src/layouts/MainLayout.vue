@@ -51,8 +51,8 @@ const route       = useRoute();
 
 const TOPBAR_H = 64;
 
-const HORIZON_URL = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/The%20Descending%20Horizon.png';
-const LOGO_URL    = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/eberoth%20logo.png';
+const HORIZON_URL = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/The%20Descending%20Horizon.png';
+const LOGO_URL    = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/eberoth%20logo.png';
 
 const bg = computed(() => appSettings.siteBackground);
 
