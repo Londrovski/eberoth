@@ -1,8 +1,8 @@
 <template>
-  <div class="entity-avatar" :class="{ fill }" :style="style">
+  <div class="entity-avatar" :class="{ fill, 'dead-glow': entity.is_dead && detail }" :style="style">
     <img v-if="src" :src="src" :alt="alt" @error="onError" />
     <span v-else class="missing">?</span>
-    <img v-if="entity.is_dead" class="dead-overlay" :src="deadOverlay" alt="" aria-hidden="true" />
+    <img v-if="entity.is_dead && !detail" class="dead-overlay" :src="deadOverlay" alt="" aria-hidden="true" />
   </div>
 </template>
 
@@ -12,7 +12,8 @@ import { computed, ref } from 'vue';
 const props = defineProps({
   entity: { type: Object, required: true },
   size:   { type: Number, default: 44 },
-  fill:   { type: Boolean, default: false }
+  fill:   { type: Boolean, default: false },
+  detail: { type: Boolean, default: false }
 });
 
 const IMAGE_BASE = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/';
@@ -77,10 +78,24 @@ function onError() { errored.value = true; }
 }
 .dead-overlay {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 62%;
+  height: 62%;
   object-fit: contain;
+  pointer-events: none;
+}
+/* Expanded portrait: no X — deep-red border + glow, face stays visible */
+.entity-avatar.dead-glow {
+  border-color: #9c2323;
+  box-shadow: 0 0 0 2px rgba(156, 35, 35, 0.85), 0 0 26px 6px rgba(165, 35, 35, 0.5);
+}
+.entity-avatar.dead-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 38%, rgba(150, 28, 28, 0.16), rgba(120, 18, 18, 0.34));
   pointer-events: none;
 }
 </style>
