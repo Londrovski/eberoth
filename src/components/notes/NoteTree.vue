@@ -9,8 +9,8 @@
         <template v-else-if="notes.lastSavedAt">Saved</template>
       </span>
       <span class="tools">
-        <button class="ico" title="New note" :disabled="!authed" @click="notes.createNote(null)"><q-icon name="note_add" size="22px" /></button>
-        <button class="ico" title="New folder" :disabled="!authed" @click="notes.createFolder(null)"><q-icon name="create_new_folder" size="22px" /></button>
+        <button class="ico" title="New note" :disabled="!authed" @click="notes.createNote(null)"><q-icon name="note_add" size="1.5em" /></button>
+        <button class="ico" title="New folder" :disabled="!authed" @click="notes.createFolder(null)"><q-icon name="create_new_folder" size="1.5em" /></button>
       </span>
     </header>
 
@@ -30,11 +30,11 @@
         @dragend="onDragEnd"
       >
         <span v-if="row.node.type==='folder'" class="twisty">
-          <q-icon :name="row.node.collapsed ? 'chevron_right' : 'expand_more'" size="22px" />
+          <q-icon :name="row.node.collapsed ? 'chevron_right' : 'expand_more'" size="1.5em" />
         </span>
         <span v-else class="twisty narrow"></span>
 
-        <q-icon :name="row.node.type==='folder' ? (row.node.collapsed ? 'folder' : 'folder_open') : 'description'" size="19px" class="kind-ico" />
+        <q-icon :name="row.node.type==='folder' ? (row.node.collapsed ? 'folder' : 'folder_open') : 'description'" size="1.3em" class="kind-ico" />
 
         <input
           v-if="editingId === row.node.id"
@@ -51,14 +51,14 @@
         <!-- inline delete confirm (persists regardless of hover) -->
         <span v-if="confirmId === row.node.id" class="confirm" @click.stop>
           <span class="confirm-q">Delete?</span>
-          <button class="ico sm ok" title="Confirm delete" @click="doDelete(row.node)"><q-icon name="check" size="18px" /></button>
-          <button class="ico sm" title="Cancel" @click="confirmId = null"><q-icon name="close" size="18px" /></button>
+          <button class="ico sm ok" title="Confirm delete" @click="doDelete(row.node)"><q-icon name="check" size="1.2em" /></button>
+          <button class="ico sm" title="Cancel" @click="confirmId = null"><q-icon name="close" size="1.2em" /></button>
         </span>
         <span v-else class="row-tools" @click.stop>
-          <button v-if="row.node.type==='folder'" class="ico sm" title="Add note in folder" @click="notes.createNote(row.node.id)"><q-icon name="note_add" size="18px" /></button>
-          <button v-if="row.node.type==='folder'" class="ico sm" title="Add subfolder" @click="notes.createFolder(row.node.id)"><q-icon name="create_new_folder" size="18px" /></button>
-          <button class="ico sm" title="Rename" @click="startRename(row.node)"><q-icon name="edit" size="18px" /></button>
-          <button class="ico sm danger" title="Delete" @click="confirmId = row.node.id"><q-icon name="delete" size="18px" /></button>
+          <button v-if="row.node.type==='folder'" class="ico sm" title="Add note in folder" @click="notes.createNote(row.node.id)"><q-icon name="note_add" size="1.2em" /></button>
+          <button v-if="row.node.type==='folder'" class="ico sm" title="Add subfolder" @click="notes.createFolder(row.node.id)"><q-icon name="create_new_folder" size="1.2em" /></button>
+          <button class="ico sm" title="Rename" @click="startRename(row.node)"><q-icon name="edit" size="1.2em" /></button>
+          <button class="ico sm danger" title="Delete" @click="confirmId = row.node.id"><q-icon name="delete" size="1.2em" /></button>
         </span>
       </div>
 
@@ -74,7 +74,7 @@
           :class="{ active: isActiveSession(s) }"
           @click="notes.setActiveSession(s.id)"
         >
-          <q-icon name="auto_stories" size="18px" class="kind-ico" />
+          <q-icon name="auto_stories" size="1.2em" class="kind-ico" />
           <span class="label">{{ sessionLabel(s) }}</span>
         </div>
       </div>
@@ -177,16 +177,16 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
 </script>
 
 <style scoped>
-.note-tree { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-panel); }
+.note-tree { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-panel); font-size: calc(15px * var(--nz, 1)); }
 .tree-head {
   display: flex; align-items: center; gap: 8px;
   padding: 12px 12px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .tree-head .title {
-  font-size: 14px; letter-spacing: var(--section-heading-spacing);
+  font-size: 0.95em; letter-spacing: var(--section-heading-spacing);
   text-transform: uppercase; color: var(--section-heading-color); font-weight: bold;
 }
-.tree-head .status { font-size: 11px; color: var(--text-dim); }
+.tree-head .status { font-size: 0.75em; color: var(--text-dim); }
 .tree-head .status.saving { color: var(--gold-dim); }
 .tree-head .tools { margin-left: auto; display: flex; gap: 4px; }
 
@@ -204,7 +204,7 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
 
 .row {
   display: flex; align-items: center; gap: 5px;
-  padding: 7px 8px 7px 0; cursor: pointer; font-size: 15px; color: var(--text);
+  padding: 7px 8px 7px 0; cursor: pointer; font-size: 1em; color: var(--text);
   border-left: 2px solid transparent; user-select: none;
 }
 .row:hover { background: var(--bg-panel-2); }
@@ -216,23 +216,23 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
 .label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rename {
   flex: 1; background: var(--bg); color: var(--gold-bright);
-  border: 1px solid var(--gold-dim); border-radius: 3px; padding: 2px 6px; font: inherit; font-size: 15px; outline: none;
+  border: 1px solid var(--gold-dim); border-radius: 3px; padding: 2px 6px; font: inherit; font-size: 1em; outline: none;
 }
-.row-tools { display: none; gap: 2px; flex-shrink: 0; padding-right: 6px; }
-.row:hover .row-tools { display: inline-flex; }
+.row-tools { display: inline-flex; gap: 2px; flex-shrink: 0; padding-right: 6px; opacity: 0.45; transition: opacity 0.12s ease; }
+.row:hover .row-tools, .row.active .row-tools { opacity: 1; }
 .confirm { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; padding-right: 6px; }
-.confirm-q { font-size: 12px; color: var(--text-dim); }
+.confirm-q { font-size: 0.8em; color: var(--text-dim); }
 
-.empty { padding: 18px 16px; color: var(--text-dim); font-size: 13px; font-style: italic; line-height: 1.55; }
+.empty { padding: 18px 16px; color: var(--text-dim); font-size: 0.85em; font-style: italic; line-height: 1.55; }
 
 .canon { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
 .canon-head {
-  padding: 6px 14px 6px; font-size: 11px; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--gold-dim); font-weight: bold;
+  padding: 6px 14px 6px; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--gold-dim); font-weight: bold; font-size: 0.75em;
 }
 .canon-row {
   display: flex; align-items: center; gap: 7px;
-  padding: 7px 10px 7px 16px; cursor: pointer; font-size: 15px; color: var(--text-dim);
+  padding: 7px 10px 7px 16px; cursor: pointer; font-size: 1em; color: var(--text-dim);
   border-left: 2px solid transparent;
 }
 .canon-row:hover { background: var(--bg-panel-2); color: var(--gold-bright); }

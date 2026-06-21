@@ -1,7 +1,7 @@
 <template>
-  <q-page class="notes-page">
+  <q-page class="notes-page" :style="{ '--nz': userZoom }">
     <div class="notes-layout">
-      <aside class="tree-pane" :style="{ width: drawerWidth + 'px' }">
+      <aside class="tree-pane" :style="{ width: Math.round(drawerWidth * userZoom) + 'px' }">
         <NoteTree />
       </aside>
 
@@ -55,6 +55,7 @@ const prefs = useUserPrefsStore();
 const authed = computed(() => !!auth.user);
 const activeNote = computed(() => notes.activeNode);
 const activeSession = computed(() => notes.activeSession);
+const userZoom = computed(() => prefs.userZoom || 1);
 
 const headTitle = computed(() => {
   if (notes.activeKind === 'note' && activeNote.value) return activeNote.value.label;
@@ -125,7 +126,7 @@ onBeforeUnmount(() => {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 22px; border-bottom: 1px solid var(--border); background: var(--bg-panel-2); flex-shrink: 0;
 }
-.doc-title { font-size: 18px; color: var(--gold-bright); font-weight: 600; letter-spacing: 0.01em; }
+.doc-title { font-size: calc(18px * var(--nz, 1)); color: var(--gold-bright); font-weight: 600; letter-spacing: 0.01em; }
 .ro-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; }
 .placeholder {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -147,7 +148,7 @@ onBeforeUnmount(() => {
   outline: none;
   padding: 20px 26px 70px;
   color: var(--text);
-  font-size: 16.5px;
+  font-size: calc(16.5px * var(--nz, 1));
   line-height: 1.7;
   min-height: 100%;
 }
