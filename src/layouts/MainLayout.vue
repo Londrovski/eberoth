@@ -81,7 +81,11 @@ const bgImageStyle = computed(() => {
   return {};
 });
 
-const zoomStyle = computed(() => ({ zoom: String(userPrefs.userZoom || 1) }));
+// The Notes page scales itself (text + panel) from userZoom via a CSS var,
+// so it opts out of the global page zoom to avoid double-scaling.
+const zoomStyle = computed(() =>
+  route.name === 'notes' ? {} : { zoom: String(userPrefs.userZoom || 1) }
+);
 
 watch(() => auth.user?.email, () => { userPrefs.load(); });
 

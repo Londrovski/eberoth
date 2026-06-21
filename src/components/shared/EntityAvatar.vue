@@ -1,11 +1,8 @@
 <template>
-  <div class="entity-avatar" :class="{ fill }" :style="style">
+  <div class="entity-avatar" :class="{ fill, 'dead-glow': entity.is_dead && detail }" :style="style">
     <img v-if="src" :src="src" :alt="alt" @error="onError" />
     <span v-else class="missing">?</span>
-    <svg v-if="entity.is_dead" class="dead-cross" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M 8,8 C 28,16 44,36 52,50 C 60,64 76,82 92,92" />
-      <path d="M 92,8 C 74,22 60,36 50,50 C 40,64 26,78 8,92" />
-    </svg>
+    <img v-if="entity.is_dead && !detail" class="dead-overlay" :src="deadOverlay" alt="" aria-hidden="true" />
   </div>
 </template>
 
@@ -15,10 +12,12 @@ import { computed, ref } from 'vue';
 const props = defineProps({
   entity: { type: Object, required: true },
   size:   { type: Number, default: 44 },
-  fill:   { type: Boolean, default: false }
+  fill:   { type: Boolean, default: false },
+  detail: { type: Boolean, default: false }
 });
 
 const IMAGE_BASE = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/';
+const deadOverlay = IMAGE_BASE + 'Dead.png';
 
 function resolveUrl(raw) {
   if (!raw) return null;
@@ -66,7 +65,7 @@ function onError() { errored.value = true; }
   height: auto;
   aspect-ratio: 1 / 1;
 }
-.entity-avatar img {
+.entity-avatar img:not(.dead-overlay) {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -77,19 +76,28 @@ function onError() { errored.value = true; }
   color: var(--gold);
   line-height: 1;
 }
-.dead-cross {
+.dead-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  object-fit: contain;
   pointer-events: none;
+  /* Stay put against per-card hover zoom (e.g. MemberCard img scale) */
+  transform: none !important;
+  transition: none !important;
 }
-.dead-cross path {
-  fill: none;
-  stroke: #8B1A1A;
-  stroke-width: 9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.9;
+/* Expanded portrait: no X — deep-red border + glow, face stays visible */
+.entity-avatar.dead-glow {
+  border-color: #9c2323;
+  box-shadow: 0 0 0 2px rgba(156, 35, 35, 0.85), 0 0 26px 6px rgba(165, 35, 35, 0.5);
+}
+.entity-avatar.dead-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 38%, rgba(150, 28, 28, 0.16), rgba(120, 18, 18, 0.34));
+  pointer-events: none;
 }
 </style>

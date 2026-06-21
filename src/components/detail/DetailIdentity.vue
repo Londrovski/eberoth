@@ -1,9 +1,9 @@
 <template>
   <div class="identity column items-center text-center q-mb-md">
     <div class="avatar-wrap">
-      <EntityAvatar :entity="entity" fill />
+      <EntityAvatar :entity="entity" fill detail />
     </div>
-    <div class="name q-mt-md">{{ entity.name }}</div>
+    <div class="name q-mt-md" :class="{ dead: entity.is_dead }">{{ entity.name }}<span v-if="entity.is_dead"> — Dead</span></div>
     <div class="sub q-mt-xs" v-if="entity.sub">{{ entity.sub }}</div>
     <div class="kind q-mt-xs">{{ kindLabel }}</div>
   </div>
@@ -32,6 +32,7 @@ const kindLabel = computed(() => KIND_LABEL[props.entity.kind] || props.entity.k
   width: 100%;
   max-width: 300px;
 }
+.name.dead { color: #cf5a52; }
 .name {
   font-size: 1.6rem;
   font-weight: 500;
