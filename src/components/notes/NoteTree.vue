@@ -205,7 +205,7 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
 .row {
   display: flex; align-items: center; gap: 5px;
   padding: 7px 8px 7px 0; cursor: pointer; font-size: 1em; color: var(--text);
-  border-left: 2px solid transparent; user-select: none;
+  border-left: 2px solid transparent; user-select: none; flex-wrap: nowrap; overflow: hidden;
 }
 .row:hover { background: var(--bg-panel-2); }
 .row.active { background: rgba(201,169,97,0.16); border-left-color: var(--gold); color: var(--gold-bright); }
@@ -213,13 +213,12 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
 .twisty { display: inline-flex; width: 22px; color: var(--text-dim); flex-shrink: 0; }
 .twisty.narrow { width: 12px; }
 .kind-ico { color: var(--gold-dim); flex-shrink: 0; }
-.label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.label { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rename {
   flex: 1; background: var(--bg); color: var(--gold-bright);
   border: 1px solid var(--gold-dim); border-radius: 3px; padding: 2px 6px; font: inherit; font-size: 1em; outline: none;
 }
-.row-tools { display: inline-flex; gap: 2px; flex-shrink: 0; padding-right: 6px; opacity: 0.85; transition: opacity 0.12s ease; }
-.row:hover .row-tools, .row.active .row-tools { opacity: 1; }
+.row-tools { display: inline-flex; gap: 2px; flex: 0 0 auto; padding-right: 6px; }
 .row-tools .ico { border: 1px solid var(--border); }
 .confirm { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; padding-right: 6px; }
 .confirm-q { font-size: 0.8em; color: var(--text-dim); }
@@ -234,7 +233,7 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
 .canon-row {
   display: flex; align-items: center; gap: 7px;
   padding: 7px 10px 7px 16px; cursor: pointer; font-size: 1em; color: var(--text-dim);
-  border-left: 2px solid transparent;
+  border-left: 2px solid transparent; flex-wrap: nowrap; overflow: hidden;
 }
 .canon-row:hover { background: var(--bg-panel-2); color: var(--gold-bright); }
 .canon-row.active { background: rgba(201,169,97,0.16); border-left-color: var(--gold); color: var(--gold-bright); }
