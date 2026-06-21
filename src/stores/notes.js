@@ -1,6 +1,10 @@
 // Personal notes tree state. One jsonb blob per user, server-backed.
 // Supports DM "view as" — when viewingAs is set, reads/writes that
 // player's tree (mirrors the old notepad behaviour).
+//
+// The main pane shows one of two things, tracked by `activeKind`:
+//   'note'    -> an editable note node (activeId)
+//   'session' -> a read-only Campaign History session (activeSessionId)
 import { defineStore } from 'pinia';
 import { useAuthStore } from 'src/stores/auth';
 import {
@@ -14,6 +18,8 @@ export const useNotesStore = defineStore('notesTree', {
   state: () => ({
     nodes: [],
     activeId: null,
+    activeKind: 'note',
+    activeSessionId: null,
     loading: false,
     saving: false,
     lastSavedAt: null,
@@ -25,37 +31,32 @@ export const useNotesStore = defineStore('notesTree', {
   getters: {
     rootNodes: (s) => childrenOf(s.nodes, null),
     activeNode: (s) => s.nodes.find(n => n.id === s.activeId) || null,
+    activeSession: (s) => s.sessions.find(x => String(x.id) === String(s.activeSessionId)) || null,
     childrenById: (s) => (parentId) => childrenOf(s.nodes, parentId)
   },
 
   actions: {
-    _targetEmail() {
+    _overrideEmail() {
       const auth = useAuthStore();
-      if (auth.isViewingAs && auth.viewingAs) return auth.viewingAs + '@compendium.local';
-      return auth.user?.email || null;
+      return auth.isViewingAs && auth.viewingAs
+        ? auth.viewingAs + '@compendium.local'
+        : null;
     },
 
     async load() {
-      const email = this._targetEmail();
       this.loading = true;
       try {
         const state = await fetchNotepad(this._overrideEmail());
         this.nodes = state.nodes;
         this.activeId = state.activeId;
-        this.loadedFor = email;
+        this.activeKind = 'note';
+        this.activeSessionId = null;
       } finally {
         this.loading = false;
       }
       if (!this.sessions.length) {
         try { this.sessions = await sessionsApi.fetchAll(); } catch { this.sessions = []; }
       }
-    },
-
-    _overrideEmail() {
-      const auth = useAuthStore();
-      return auth.isViewingAs && auth.viewingAs
-        ? auth.viewingAs + '@compendium.local'
-        : null;
     },
 
     _scheduleSave() {
@@ -80,14 +81,21 @@ export const useNotesStore = defineStore('notesTree', {
       const n = this.nodes.find(x => x.id === id);
       if (!n) return;
       if (n.type === 'folder') { this.toggleCollapse(id); return; }
+      this.activeKind = 'note';
       this.activeId = id;
       this._scheduleSave();
+    },
+
+    setActiveSession(id) {
+      this.activeKind = 'session';
+      this.activeSessionId = id;
     },
 
     createNote(parentId = null) {
       const n = noteNode({ parentId, label: 'New note', position: nextPosition(this.nodes, parentId) });
       this.nodes.push(n);
       if (parentId) this._expand(parentId);
+      this.activeKind = 'note';
       this.activeId = n.id;
       this._scheduleSave();
       return n.id;
@@ -114,6 +122,7 @@ export const useNotesStore = defineStore('notesTree', {
       if (ids.has(this.activeId)) {
         const firstNote = this.nodes.find(n => n.type === 'note');
         this.activeId = firstNote ? firstNote.id : null;
+        this.activeKind = 'note';
       }
       this._scheduleSave();
     },
@@ -143,11 +152,9 @@ export const useNotesStore = defineStore('notesTree', {
       if (id === newParentId) return;
       const node = this.nodes.find(n => n.id === id);
       if (!node) return;
-      // Can't move a node into itself or any of its descendants.
       if (newParentId && isDescendant(this.nodes, newParentId, id)) return;
 
       node.parentId = newParentId ?? null;
-      // Reindex siblings, inserting node before `beforeId` if given.
       const sibs = childrenOf(this.nodes, newParentId).filter(n => n.id !== id);
       const ordered = [];
       let inserted = false;

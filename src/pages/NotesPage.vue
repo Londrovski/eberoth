@@ -11,19 +11,26 @@
       </div>
 
       <main class="editor-pane">
-        <div v-if="activeNote" class="note-head">
-          <span class="crumbs">{{ breadcrumb }}</span>
+        <div v-if="headTitle" class="note-head">
+          <span class="doc-title">{{ headTitle }}</span>
+          <span v-if="notes.activeKind === 'session'" class="ro-tag">Read only</span>
         </div>
+
         <RichNoteEditor
-          v-if="activeNote"
+          v-if="notes.activeKind === 'note' && activeNote"
           :key="activeNote.id"
           :node="activeNote"
           :editable="authed"
           :sessions="notes.sessions"
           @change="onChange"
         />
+        <SessionReadView
+          v-else-if="notes.activeKind === 'session' && activeSession"
+          :key="'s-' + activeSession.id"
+          :session="activeSession"
+        />
         <div v-else class="placeholder">
-          <q-icon name="description" size="40px" />
+          <q-icon name="description" size="44px" />
           <p v-if="!authed">Sign in to write notes.</p>
           <p v-else>Select a note on the left, or create one with the + buttons.</p>
         </div>
@@ -36,6 +43,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import NoteTree from 'components/notes/NoteTree.vue';
 import RichNoteEditor from 'components/notes/editor/RichNoteEditor.vue';
+import SessionReadView from 'components/notes/SessionReadView.vue';
 import { useNotesStore } from 'src/stores/notes';
 import { useAuthStore } from 'src/stores/auth';
 import { useUserPrefsStore } from 'src/stores/user-prefs';
@@ -46,14 +54,15 @@ const prefs = useUserPrefsStore();
 
 const authed = computed(() => !!auth.user);
 const activeNote = computed(() => notes.activeNode);
+const activeSession = computed(() => notes.activeSession);
 
-const breadcrumb = computed(() => {
-  let n = activeNote.value;
-  if (!n) return '';
-  const parts = [];
-  const byId = (id) => notes.nodes.find((x) => x.id === id);
-  while (n) { parts.unshift(n.label); n = n.parentId ? byId(n.parentId) : null; }
-  return parts.join('  ›  ');
+const headTitle = computed(() => {
+  if (notes.activeKind === 'note' && activeNote.value) return activeNote.value.label;
+  if (notes.activeKind === 'session' && activeSession.value) {
+    const s = activeSession.value;
+    return 'Session ' + s.number + (s.title ? ' - ' + s.title : '');
+  }
+  return '';
 });
 
 function onChange(html) {
@@ -61,9 +70,9 @@ function onChange(html) {
 }
 
 // ── resizer (reuses the user-prefs drawer width) ──
-const DEFAULT_WIDTH = 320;
-const MIN = 220;
-const ABS_MAX = 640;
+const DEFAULT_WIDTH = 340;
+const MIN = 240;
+const ABS_MAX = 680;
 const dragging = ref(false);
 function dynamicMax() {
   if (typeof window === 'undefined') return ABS_MAX;
@@ -112,11 +121,15 @@ onBeforeUnmount(() => {
 .resizer:hover .resizer-grip span, .resizer.dragging .resizer-grip span { background: var(--gold); }
 
 .editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-panel); }
-.note-head { padding: 8px 18px; border-bottom: 1px solid var(--border); background: var(--bg-panel-2); flex-shrink: 0; }
-.crumbs { font-size: 11px; color: var(--text-dim); letter-spacing: 0.03em; }
+.note-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 22px; border-bottom: 1px solid var(--border); background: var(--bg-panel-2); flex-shrink: 0;
+}
+.doc-title { font-size: 18px; color: var(--gold-bright); font-weight: 600; letter-spacing: 0.01em; }
+.ro-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; }
 .placeholder {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; color: var(--text-dim); font-style: italic; text-align: center; padding: 24px;
+  gap: 12px; color: var(--text-dim); font-style: italic; text-align: center; padding: 24px; font-size: 15px;
 }
 
 @media (max-width: 700px) {
@@ -132,22 +145,22 @@ onBeforeUnmount(() => {
 /* ── Notes: global editor surface styles (unscoped on purpose) ─────────── */
 .ProseMirror {
   outline: none;
-  padding: 16px 20px 60px;
+  padding: 20px 26px 70px;
   color: var(--text);
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 16.5px;
+  line-height: 1.7;
   min-height: 100%;
 }
 .ProseMirror:focus { outline: none; }
-.ProseMirror > * + * { margin-top: 0.65em; }
+.ProseMirror > * + * { margin-top: 0.7em; }
 .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 { color: var(--gold-bright); font-weight: 600; line-height: 1.25; }
 .ProseMirror h1 { font-size: 1.5em; }
-.ProseMirror h2 { font-size: 1.25em; }
-.ProseMirror h3 { font-size: 1.1em; }
+.ProseMirror h2 { font-size: 1.28em; }
+.ProseMirror h3 { font-size: 1.12em; }
 .ProseMirror ul, .ProseMirror ol { padding-left: 1.4em; }
 .ProseMirror ul { list-style: disc; }
 .ProseMirror ol { list-style: decimal; }
-.ProseMirror li { margin: 0.15em 0; }
+.ProseMirror li { margin: 0.2em 0; }
 .ProseMirror blockquote { border-left: 3px solid var(--gold-dim); padding-left: 12px; color: var(--text-dim); font-style: italic; }
 .ProseMirror hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
 .ProseMirror code { background: var(--bg-panel-2); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
@@ -155,10 +168,10 @@ onBeforeUnmount(() => {
 
 /* Checklists */
 .ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
-.ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 8px; }
-.ProseMirror ul[data-type="taskList"] li > label { margin-top: 2px; }
+.ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 9px; }
+.ProseMirror ul[data-type="taskList"] li > label { margin-top: 3px; }
 .ProseMirror ul[data-type="taskList"] li > div { flex: 1; }
-.ProseMirror ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; }
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"] { accent-color: var(--gold); width: 17px; height: 17px; cursor: pointer; }
 
 /* Placeholder */
 .ProseMirror p.is-editor-empty:first-child::before {
@@ -179,10 +192,10 @@ onBeforeUnmount(() => {
   position: fixed; z-index: 4000;
   background: var(--bg-panel); border: 1px solid var(--gold-dim); border-radius: 4px;
   box-shadow: 0 10px 28px rgba(0,0,0,0.55);
-  min-width: 220px; max-width: 320px; padding: 4px 0;
+  min-width: 230px; max-width: 340px; padding: 4px 0;
 }
-.mention-suggest .ms-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; font-size: 13px; color: var(--text); }
+.mention-suggest .ms-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; font-size: 14px; color: var(--text); }
 .mention-suggest .ms-row:hover, .mention-suggest .ms-row.sel { background: var(--bg-panel-2); color: var(--gold-bright); }
-.mention-suggest .ms-kind { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-dim); min-width: 52px; }
+.mention-suggest .ms-kind { font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gold-dim); min-width: 54px; }
 .mention-suggest .ms-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

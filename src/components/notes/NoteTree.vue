@@ -9,8 +9,8 @@
         <template v-else-if="notes.lastSavedAt">Saved</template>
       </span>
       <span class="tools">
-        <button class="ico" title="New note" :disabled="!authed" @click="notes.createNote(null)"><q-icon name="note_add" size="18px" /></button>
-        <button class="ico" title="New folder" :disabled="!authed" @click="notes.createFolder(null)"><q-icon name="create_new_folder" size="18px" /></button>
+        <button class="ico" title="New note" :disabled="!authed" @click="notes.createNote(null)"><q-icon name="note_add" size="22px" /></button>
+        <button class="ico" title="New folder" :disabled="!authed" @click="notes.createFolder(null)"><q-icon name="create_new_folder" size="22px" /></button>
       </span>
     </header>
 
@@ -19,8 +19,8 @@
         v-for="row in visible"
         :key="row.node.id"
         class="row"
-        :class="{ active: row.node.id === notes.activeId, folder: row.node.type==='folder', dragover: dropId===row.node.id }"
-        :style="{ paddingLeft: (8 + row.depth * 14) + 'px' }"
+        :class="{ active: isActiveNote(row.node), folder: row.node.type==='folder', dragover: dropId===row.node.id }"
+        :style="{ paddingLeft: (10 + row.depth * 16) + 'px' }"
         :draggable="authed && editingId !== row.node.id"
         @click="onRowClick(row.node)"
         @dragstart="onDragStart(row.node, $event)"
@@ -30,11 +30,11 @@
         @dragend="onDragEnd"
       >
         <span v-if="row.node.type==='folder'" class="twisty">
-          <q-icon :name="row.node.collapsed ? 'chevron_right' : 'expand_more'" size="18px" />
+          <q-icon :name="row.node.collapsed ? 'chevron_right' : 'expand_more'" size="22px" />
         </span>
         <span v-else class="twisty narrow"></span>
 
-        <q-icon :name="row.node.type==='folder' ? (row.node.collapsed ? 'folder' : 'folder_open') : 'description'" size="16px" class="kind-ico" />
+        <q-icon :name="row.node.type==='folder' ? (row.node.collapsed ? 'folder' : 'folder_open') : 'description'" size="19px" class="kind-ico" />
 
         <input
           v-if="editingId === row.node.id"
@@ -48,27 +48,34 @@
         />
         <span v-else class="label" @dblclick.stop="startRename(row.node)">{{ row.node.label }}</span>
 
-        <span class="row-tools" @click.stop>
-          <button v-if="row.node.type==='folder'" class="ico sm" title="New note here" @click="notes.createNote(row.node.id)"><q-icon name="note_add" size="14px" /></button>
-          <button v-if="row.node.type==='folder'" class="ico sm" title="New subfolder" @click="notes.createFolder(row.node.id)"><q-icon name="create_new_folder" size="14px" /></button>
-          <button class="ico sm" title="Rename" @click="startRename(row.node)"><q-icon name="edit" size="14px" /></button>
-          <button class="ico sm danger" title="Delete" @click="confirmDelete(row.node)"><q-icon name="delete" size="14px" /></button>
+        <!-- inline delete confirm (persists regardless of hover) -->
+        <span v-if="confirmId === row.node.id" class="confirm" @click.stop>
+          <span class="confirm-q">Delete?</span>
+          <button class="ico sm ok" title="Confirm delete" @click="doDelete(row.node)"><q-icon name="check" size="18px" /></button>
+          <button class="ico sm" title="Cancel" @click="confirmId = null"><q-icon name="close" size="18px" /></button>
+        </span>
+        <span v-else class="row-tools" @click.stop>
+          <button v-if="row.node.type==='folder'" class="ico sm" title="Add note in folder" @click="notes.createNote(row.node.id)"><q-icon name="note_add" size="18px" /></button>
+          <button v-if="row.node.type==='folder'" class="ico sm" title="Add subfolder" @click="notes.createFolder(row.node.id)"><q-icon name="create_new_folder" size="18px" /></button>
+          <button class="ico sm" title="Rename" @click="startRename(row.node)"><q-icon name="edit" size="18px" /></button>
+          <button class="ico sm danger" title="Delete" @click="confirmId = row.node.id"><q-icon name="delete" size="18px" /></button>
         </span>
       </div>
 
       <div v-if="!visible.length" class="empty">No notes yet. Use the buttons above to make a folder or a note.</div>
 
-      <!-- Campaign History — read-only session docs -->
+      <!-- Campaign History — read-only session docs, open in the main pane -->
       <div v-if="notes.sessions.length" class="canon">
         <div class="canon-head">Campaign History</div>
         <div
           v-for="s in sortedSessions"
           :key="s.id"
           class="canon-row"
-          @click="openSession(s)"
+          :class="{ active: isActiveSession(s) }"
+          @click="notes.setActiveSession(s.id)"
         >
-          <q-icon name="auto_stories" size="15px" class="kind-ico" />
-          <span class="label">{{ s.title || ('Session ' + s.number) }}</span>
+          <q-icon name="auto_stories" size="18px" class="kind-ico" />
+          <span class="label">{{ sessionLabel(s) }}</span>
         </div>
       </div>
     </div>
@@ -79,12 +86,10 @@
 import { ref, computed, nextTick } from 'vue';
 import { useNotesStore } from 'src/stores/notes';
 import { useAuthStore } from 'src/stores/auth';
-import { useSessionDetail } from 'src/composables/useSessionDetail';
 import { childrenOf } from 'src/api/notepad';
 
 const notes = useNotesStore();
 const auth = useAuthStore();
-const sessionDetail = useSessionDetail();
 
 const authed = computed(() => !!auth.user);
 const isViewingAs = computed(() => auth.isViewingAs);
@@ -93,9 +98,19 @@ const viewingAsLabel = computed(() => {
   return b ? b.charAt(0).toUpperCase() + b.slice(1) : '';
 });
 
+function sessionLabel(s) {
+  return 'Session ' + s.number + (s.title ? ' - ' + s.title : '');
+}
 const sortedSessions = computed(() =>
   [...notes.sessions].sort((a, b) => (a.number || 0) - (b.number || 0))
 );
+
+function isActiveNote(node) {
+  return notes.activeKind === 'note' && node.id === notes.activeId;
+}
+function isActiveSession(s) {
+  return notes.activeKind === 'session' && String(s.id) === String(notes.activeSessionId);
+}
 
 // Flatten the tree into an ordered, depth-tagged visible list.
 const visible = computed(() => {
@@ -120,6 +135,7 @@ const editingId = ref(null);
 const draft = ref('');
 const renameInput = ref(null);
 async function startRename(node) {
+  confirmId.value = null;
   editingId.value = node.id;
   draft.value = node.label;
   await nextTick();
@@ -133,10 +149,9 @@ function commitRename(node) {
 }
 function cancelRename() { editingId.value = null; }
 
-function confirmDelete(node) {
-  const kids = node.type === 'folder' ? ' and everything inside it' : '';
-  if (window.confirm('Delete "' + node.label + '"' + kids + '?')) notes.remove(node.id);
-}
+// ── delete (inline confirm) ──
+const confirmId = ref(null);
+function doDelete(node) { notes.remove(node.id); confirmId.value = null; }
 
 // ── drag & drop ──
 const dragId = ref(null);
@@ -159,64 +174,67 @@ function dropToRoot() {
   dragId.value = null; dropId.value = null;
 }
 function onDragEnd() { dragId.value = null; dropId.value = null; }
-
-function openSession(s) { sessionDetail.open(s, 'tree'); }
 </script>
 
 <style scoped>
 .note-tree { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-panel); }
 .tree-head {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 10px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  padding: 12px 12px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .tree-head .title {
-  font-size: var(--section-heading-size); letter-spacing: var(--section-heading-spacing);
+  font-size: 14px; letter-spacing: var(--section-heading-spacing);
   text-transform: uppercase; color: var(--section-heading-color); font-weight: bold;
 }
-.tree-head .status { font-size: 10px; color: var(--text-dim); }
+.tree-head .status { font-size: 11px; color: var(--text-dim); }
 .tree-head .status.saving { color: var(--gold-dim); }
-.tree-head .tools { margin-left: auto; display: flex; gap: 2px; }
+.tree-head .tools { margin-left: auto; display: flex; gap: 4px; }
 
 .ico {
   background: transparent; border: none; color: var(--text-dim);
-  cursor: pointer; padding: 3px; border-radius: 4px; display: inline-flex; align-items: center;
+  cursor: pointer; padding: 4px; border-radius: 4px; display: inline-flex; align-items: center;
 }
 .ico:hover { color: var(--gold-bright); background: rgba(201,169,97,0.12); }
 .ico:disabled { opacity: 0.35; cursor: default; }
-.ico.sm { padding: 2px; }
+.ico.sm { padding: 3px; }
 .ico.danger:hover { color: var(--red); background: rgba(139,58,58,0.18); }
+.ico.ok:hover { color: #9ec7a0; background: rgba(120,180,120,0.18); }
 
-.tree-scroll { flex: 1; overflow-y: auto; padding: 4px 0 24px; min-height: 0; }
+.tree-scroll { flex: 1; overflow-y: auto; padding: 6px 0 28px; min-height: 0; }
 
 .row {
-  display: flex; align-items: center; gap: 4px;
-  padding: 4px 8px 4px 0; cursor: pointer; font-size: 13px; color: var(--text);
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 8px 7px 0; cursor: pointer; font-size: 15px; color: var(--text);
   border-left: 2px solid transparent; user-select: none;
 }
 .row:hover { background: var(--bg-panel-2); }
-.row.active { background: rgba(201,169,97,0.14); border-left-color: var(--gold); color: var(--gold-bright); }
-.row.dragover { background: rgba(201,169,97,0.22); box-shadow: inset 0 -2px 0 var(--gold-dim); }
-.twisty { display: inline-flex; width: 18px; color: var(--text-dim); flex-shrink: 0; }
-.twisty.narrow { width: 10px; }
+.row.active { background: rgba(201,169,97,0.16); border-left-color: var(--gold); color: var(--gold-bright); }
+.row.dragover { background: rgba(201,169,97,0.24); box-shadow: inset 0 -2px 0 var(--gold-dim); }
+.twisty { display: inline-flex; width: 22px; color: var(--text-dim); flex-shrink: 0; }
+.twisty.narrow { width: 12px; }
 .kind-ico { color: var(--gold-dim); flex-shrink: 0; }
 .label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rename {
   flex: 1; background: var(--bg); color: var(--gold-bright);
-  border: 1px solid var(--gold-dim); border-radius: 3px; padding: 1px 4px; font: inherit; outline: none;
+  border: 1px solid var(--gold-dim); border-radius: 3px; padding: 2px 6px; font: inherit; font-size: 15px; outline: none;
 }
-.row-tools { display: none; gap: 1px; flex-shrink: 0; }
+.row-tools { display: none; gap: 2px; flex-shrink: 0; padding-right: 6px; }
 .row:hover .row-tools { display: inline-flex; }
+.confirm { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; padding-right: 6px; }
+.confirm-q { font-size: 12px; color: var(--text-dim); }
 
-.empty { padding: 16px 14px; color: var(--text-dim); font-size: 12px; font-style: italic; line-height: 1.5; }
+.empty { padding: 18px 16px; color: var(--text-dim); font-size: 13px; font-style: italic; line-height: 1.55; }
 
-.canon { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 6px; }
+.canon { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 8px; }
 .canon-head {
-  padding: 6px 12px 4px; font-size: 10px; text-transform: uppercase;
+  padding: 6px 14px 6px; font-size: 11px; text-transform: uppercase;
   letter-spacing: 0.1em; color: var(--gold-dim); font-weight: bold;
 }
 .canon-row {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 10px 4px 14px; cursor: pointer; font-size: 13px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 10px 7px 16px; cursor: pointer; font-size: 15px; color: var(--text-dim);
+  border-left: 2px solid transparent;
 }
 .canon-row:hover { background: var(--bg-panel-2); color: var(--gold-bright); }
+.canon-row.active { background: rgba(201,169,97,0.16); border-left-color: var(--gold); color: var(--gold-bright); }
 </style>

@@ -148,15 +148,15 @@ onBeforeUnmount(() => { if (editor.value) editor.value.destroy(); });
 
 .toolbar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-panel-2);
   position: sticky; top: 0; z-index: 5;
 }
 .tb {
-  min-width: 26px; height: 26px; padding: 0 6px;
+  min-width: 30px; height: 30px; padding: 0 8px;
   background: transparent; border: 1px solid transparent; border-radius: 4px;
-  color: var(--text-dim); cursor: pointer; font-size: 13px; font-family: inherit;
+  color: var(--text-dim); cursor: pointer; font-size: 15px; font-family: inherit;
   display: inline-flex; align-items: center; justify-content: center;
 }
 .tb:hover { color: var(--gold-bright); background: rgba(201,169,97,0.12); }
