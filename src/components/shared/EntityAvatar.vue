@@ -65,7 +65,7 @@ function onError() { errored.value = true; }
   height: auto;
   aspect-ratio: 1 / 1;
 }
-.entity-avatar img {
+.entity-avatar img:not(.dead-overlay) {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -78,13 +78,15 @@ function onError() { errored.value = true; }
 }
 .dead-overlay {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 62%;
-  height: 62%;
+  top: 10%;
+  left: 10%;
+  width: 80%;
+  height: 80%;
   object-fit: contain;
   pointer-events: none;
+  /* Stay put against per-card hover zoom (e.g. MemberCard img scale) */
+  transform: none !important;
+  transition: none !important;
 }
 /* Expanded portrait: no X — deep-red border + glow, face stays visible */
 .entity-avatar.dead-glow {
