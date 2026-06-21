@@ -7,7 +7,7 @@
     <template v-else>
       <EditIdentity v-model="identity" />
       <EditSharedBody v-model="sharedBody" />
-      <EditVisibility v-model="visibility" />
+      <EditVisibility v-model="visibility" v-model:dead="isDead" />
       <EditTags v-model="tags" />
       <EditPlayerBodies v-model="bodies" />
       <EditPersonalTo v-model="personalTo" :players="players" />
@@ -64,6 +64,7 @@ const error   = ref(null);
 const identity   = ref({ name: '', sub: '', image: '' });
 const sharedBody = ref('');
 const visibility = ref([]);
+const isDead     = ref(false);
 const tags       = ref([]);
 const bodies     = ref({ dm: '', baker: '', butcher: '', charlie: '' });
 const personalTo = ref(null);
@@ -81,6 +82,7 @@ onMounted(async () => {
     image: e.image || ''
   };
   sharedBody.value = e.shared_body || '';
+  isDead.value     = !!e.is_dead;
   facts.value      = Array.isArray(e.facts) ? [...e.facts] : [];
 
   memberships.value = entities.memberships
@@ -118,6 +120,7 @@ async function onSave() {
       identity:    identity.value,
       sharedBody:  sharedBody.value,
       visibility:  visibility.value,
+      is_dead:     isDead.value,
       tags:        tags.value,
       bodies:      bodies.value,
       personalTo:  personalTo.value,

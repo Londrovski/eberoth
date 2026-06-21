@@ -19,7 +19,8 @@ export async function saveEntity(payload) {
       name:        payload.identity.name,
       sub:         payload.identity.sub || null,
       image:       payload.identity.image || null,
-      shared_body: payload.sharedBody || null
+      shared_body: payload.sharedBody || null,
+      is_dead:     !!payload.is_dead
     })
     .eq('id', id);
   if (entErr) throw entErr;
