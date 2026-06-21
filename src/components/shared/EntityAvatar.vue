@@ -78,10 +78,10 @@ function onError() { errored.value = true; }
 }
 .dead-overlay {
   position: absolute;
-  top: 15%;
-  left: 15%;
-  width: 70%;
-  height: 70%;
+  top: 7.5%;
+  left: 7.5%;
+  width: 85%;
+  height: 85%;
   object-fit: contain;
   pointer-events: none;
   /* Stay put against per-card hover zoom (e.g. MemberCard img scale) */
