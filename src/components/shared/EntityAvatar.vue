@@ -2,6 +2,10 @@
   <div class="entity-avatar" :class="{ fill }" :style="style">
     <img v-if="src" :src="src" :alt="alt" @error="onError" />
     <span v-else class="missing">?</span>
+    <svg v-if="entity.is_dead" class="dead-cross" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M 8,8 C 28,16 44,36 52,50 C 60,64 76,82 92,92" />
+      <path d="M 92,8 C 74,22 60,36 50,50 C 40,64 26,78 8,92" />
+    </svg>
   </div>
 </template>
 
@@ -47,6 +51,7 @@ function onError() { errored.value = true; }
 
 <style scoped>
 .entity-avatar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,5 +76,20 @@ function onError() { errored.value = true; }
   font-weight: 700;
   color: var(--gold);
   line-height: 1;
+}
+.dead-cross {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.dead-cross path {
+  fill: none;
+  stroke: #8B1A1A;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
 }
 </style>
