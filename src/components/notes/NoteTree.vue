@@ -219,6 +219,11 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
   border: 1px solid var(--gold-dim); border-radius: 3px; padding: 2px 6px; font: inherit; font-size: 1em; outline: none;
 }
 .row-tools { display: inline-flex; gap: 2px; flex: 0 0 auto; padding-right: 6px; }
+.row-tools .ico, .confirm .ico {
+  display: inline-flex !important;
+  width: 28px; height: 28px; padding: 0;
+  align-items: center; justify-content: center;
+}
 .row-tools .ico { border: 1px solid var(--border); }
 .confirm { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; padding-right: 6px; }
 .confirm-q { font-size: 0.8em; color: var(--text-dim); }
