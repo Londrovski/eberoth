@@ -2,10 +2,7 @@
   <div class="entity-avatar" :class="{ fill }" :style="style">
     <img v-if="src" :src="src" :alt="alt" @error="onError" />
     <span v-else class="missing">?</span>
-    <svg v-if="entity.is_dead" class="dead-cross" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M 8,8 C 28,16 44,36 52,50 C 60,64 76,82 92,92" />
-      <path d="M 92,8 C 74,22 60,36 50,50 C 40,64 26,78 8,92" />
-    </svg>
+    <img v-if="entity.is_dead" class="dead-overlay" :src="deadOverlay" alt="" aria-hidden="true" />
   </div>
 </template>
 
@@ -19,6 +16,7 @@ const props = defineProps({
 });
 
 const IMAGE_BASE = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/';
+const deadOverlay = IMAGE_BASE + 'Dead.png';
 
 function resolveUrl(raw) {
   if (!raw) return null;
@@ -77,19 +75,12 @@ function onError() { errored.value = true; }
   color: var(--gold);
   line-height: 1;
 }
-.dead-cross {
+.dead-overlay {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  object-fit: contain;
   pointer-events: none;
-}
-.dead-cross path {
-  fill: none;
-  stroke: #8B1A1A;
-  stroke-width: 9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.9;
 }
 </style>
