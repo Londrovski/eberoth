@@ -218,7 +218,8 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
   flex: 1; background: var(--bg); color: var(--gold-bright);
   border: 1px solid var(--gold-dim); border-radius: 3px; padding: 2px 6px; font: inherit; font-size: 1em; outline: none;
 }
-.row-tools { display: inline-flex; gap: 2px; flex: 0 0 auto; padding-right: 6px; }
+.row-tools { display: inline-flex; gap: 2px; flex: 0 0 auto; padding-right: 6px; opacity: 0; transition: opacity 0.12s ease; }
+.row:hover .row-tools, .row.active .row-tools { opacity: 1; }
 .row-tools .ico, .confirm .ico {
   display: inline-flex !important;
   width: 28px; height: 28px; padding: 0;
