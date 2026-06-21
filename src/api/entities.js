@@ -47,6 +47,7 @@ export async function fetchAll(effectiveBucket) {
     shared_body:  e.shared_body,
     auth_bucket:  e.auth_bucket,
     display_name: e.display_name,
+    is_dead:      e.is_dead || false,
     facts:        factsMap[e.id] || [],
     viewerBody:   effectiveBucket ? (bodyMap[e.id]?.[effectiveBucket] || null) : null,
     tagged:       effectiveBucket ? (tagMap[e.id]?.has(effectiveBucket) || false) : false,
