@@ -11,9 +11,18 @@
       </div>
 
       <main class="editor-pane">
-        <div v-if="headTitle" class="note-head">
+        <div v-if="headTitle || canGoBack" class="note-head">
           <span class="doc-title">{{ headTitle }}</span>
           <span v-if="notes.activeKind === 'session'" class="ro-tag">Read only</span>
+          <q-btn
+            v-if="canGoBack"
+            flat dense no-caps
+            icon="arrow_back"
+            label="Back"
+            class="head-back"
+            title="Back to the previous view"
+            @click="goBack"
+          />
         </div>
 
         <RichNoteEditor
@@ -48,10 +57,12 @@ import { useNotesStore } from 'src/stores/notes';
 import { useAuthStore } from 'src/stores/auth';
 import { useUserPrefsStore } from 'src/stores/user-prefs';
 import { sessionLabel } from 'src/utils/sessionLabel';
+import { useAppNav } from 'src/composables/useAppNav';
 
 const notes = useNotesStore();
 const auth = useAuthStore();
 const prefs = useUserPrefsStore();
+const { goBack, canGoBack } = useAppNav();
 
 const authed = computed(() => !!auth.user);
 const activeNote = computed(() => notes.activeNode);
@@ -126,6 +137,8 @@ onBeforeUnmount(() => {
 }
 .doc-title { font-size: calc(18px * var(--nz, 1)); color: var(--gold-bright); font-weight: 600; letter-spacing: 0.01em; }
 .ro-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; }
+.head-back { margin-left: auto; color: var(--text-dim); letter-spacing: 0.04em; flex-shrink: 0; }
+.head-back:hover { color: var(--gold); }
 .placeholder {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 12px; color: var(--text-dim); font-style: italic; text-align: center; padding: 24px; font-size: 15px;

@@ -40,6 +40,7 @@ import { useEntitiesStore } from 'src/stores/entities';
 import { useAppSettingsStore } from 'src/stores/app-settings';
 import { useAuthStore } from 'src/stores/auth';
 import { useUserPrefsStore } from 'src/stores/user-prefs';
+import { useAppNav } from 'src/composables/useAppNav';
 import { track } from 'src/composables/useUsageTracker';
 
 const dmHighlight = useDmHighlightStore();
@@ -48,6 +49,16 @@ const appSettings = useAppSettingsStore();
 const auth        = useAuthStore();
 const userPrefs   = useUserPrefsStore();
 const route       = useRoute();
+
+// Record cross-view navigation history (route + entity overlay + notes doc)
+// so the Notes "Back" button can step back through previous views.
+const nav = useAppNav();
+let prevSnap = nav.snapshot();
+watch(() => nav.keyOf(nav.snapshot()), () => {
+  const cur = nav.snapshot();
+  if (!nav.history.restoring.value) nav.history.push(prevSnap);
+  prevSnap = cur;
+});
 
 const TOPBAR_H = 64;
 
