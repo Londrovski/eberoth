@@ -1,6 +1,6 @@
 <template>
   <div class="rich-editor">
-    <div v-if="editable && !minimal" class="toolbar">
+    <div v-if="editable" class="toolbar">
       <button class="tb" :class="{ on: is('bold') }" title="Bold" @mousedown.prevent="run(c=>c.toggleBold())"><b>B</b></button>
       <button class="tb" :class="{ on: is('italic') }" title="Italic" @mousedown.prevent="run(c=>c.toggleItalic())"><i>I</i></button>
       <button class="tb" :class="{ on: is('underline') }" title="Underline" @mousedown.prevent="run(c=>c.toggleUnderline())"><u>U</u></button>
@@ -52,19 +52,18 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { buildMention } from './mention';
 import { useEntitiesStore } from 'src/stores/entities';
 import { useEntityDetail } from 'src/composables/useEntityDetail';
-import { useSessionDetail } from 'src/composables/useSessionDetail';
+import { useNotesStore } from 'src/stores/notes';
 
 const props = defineProps({
   node: { type: Object, default: null },
   editable: { type: Boolean, default: true },
-  minimal: { type: Boolean, default: false },
   sessions: { type: Array, default: () => [] }
 });
 const emit = defineEmits(['change']);
 
 const entities = useEntitiesStore();
 const detail = useEntityDetail();
-const sessionDetail = useSessionDetail();
+const notes = useNotesStore();
 
 const highlights = ['#e6c87c', '#9ec7a0', '#7fb0d8', '#d89a9a', '#c4a7e0', '#d8d08a'];
 const colours = ['#e8e2d4', '#e6c87c', '#9ec7a0', '#7fb0d8', '#d89a9a', '#c4a7e0', '#8b3a3a'];
@@ -78,21 +77,9 @@ function getItems(query) {
     .slice(0, 8)
     .map((e) => ({ kind: 'entity', id: e.id, label: e.short_name || e.name, type: e.kind }));
   const sess = (props.sessions || [])
-    .map((s) => {
-      const prequel = !!s.kind;            // origin / flashback / prequel: no number
-      const n = s.number ?? 0;
-      const label = prequel
-        ? (s.title || '')
-        : ('Session ' + n + (s.title ? ' - ' + s.title : ''));
-      // searchable text: numbered sessions match on "session", the number, and the title
-      const search = (prequel
-        ? (s.title || '')
-        : ('session ' + n + ' ' + (s.title || '') + ' ' + n)).toLowerCase();
-      return { kind: 'session', id: s.id, label, type: 'session', search, rank: prequel ? 1000 + n : n };
-    })
-    .filter((it) => !q || it.search.includes(q))
-    .sort((a, b) => a.rank - b.rank)   // numbered sessions first, in order
-    .slice(0, 8);
+    .map((s) => ({ kind: 'session', id: s.id, label: 'Session ' + s.number + (s.title ? ' - ' + s.title : ''), type: 'session' }))
+    .filter((it) => !q || it.label.toLowerCase().includes(q))
+    .slice(0, 4);
   return [...ents, ...sess];
 }
 
@@ -121,8 +108,8 @@ const editor = useEditor({
       const id = a.getAttribute('data-mention-id');
       if (!id) return false;
       if (kind === 'session') {
-        const s = (props.sessions || []).find((x) => String(x.id) === String(id));
-        if (s) sessionDetail.open(s, 'note');
+        // Jump the Notes main pane to the session doc (no overlay).
+        notes.setActiveSession(id);
       } else {
         detail.open(id, 'note');
       }
