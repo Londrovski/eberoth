@@ -78,9 +78,21 @@ function getItems(query) {
     .slice(0, 8)
     .map((e) => ({ kind: 'entity', id: e.id, label: e.short_name || e.name, type: e.kind }));
   const sess = (props.sessions || [])
-    .map((s) => ({ kind: 'session', id: s.id, label: 'Session ' + s.number + (s.title ? ' - ' + s.title : ''), type: 'session' }))
-    .filter((it) => !q || it.label.toLowerCase().includes(q))
-    .slice(0, 4);
+    .map((s) => {
+      const prequel = !!s.kind;            // origin / flashback / prequel: no number
+      const n = s.number ?? 0;
+      const label = prequel
+        ? (s.title || '')
+        : ('Session ' + n + (s.title ? ' - ' + s.title : ''));
+      // searchable text: numbered sessions match on "session", the number, and the title
+      const search = (prequel
+        ? (s.title || '')
+        : ('session ' + n + ' ' + (s.title || '') + ' ' + n)).toLowerCase();
+      return { kind: 'session', id: s.id, label, type: 'session', search, rank: prequel ? 1000 + n : n };
+    })
+    .filter((it) => !q || it.search.includes(q))
+    .sort((a, b) => a.rank - b.rank)   // numbered sessions first, in order
+    .slice(0, 8);
   return [...ents, ...sess];
 }
 
