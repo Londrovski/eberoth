@@ -1,5 +1,5 @@
 <template>
-  <div class="member-card" :class="[visClass, { 'is-glow': glow }]" :style="desktopStyle" @click="open">
+  <div class="member-card" :class="[visClass, { 'is-glow': glow, dead: entity.is_dead }]" :style="desktopStyle" @click="open">
     <div class="img-wrap">
       <EntityAvatar :entity="entity" fill />
       <div class="badge" v-if="otherCount > 0" :title="otherFactionsTitle">+{{ otherCount }}</div>
@@ -184,4 +184,8 @@ function open() { detail.open(props.entity.id); }
   .name { font-size: 11px !important; }
   .role { font-size: 10px !important; }
 }
+
+.member-card.dead { border-color: #9c2323; box-shadow: 0 0 calc(8px * var(--scale, 1)) rgba(156, 35, 35, 0.45); }
+.member-card.dead .footer { border-top-color: #9c2323; }
+.member-card.dead .name { color: #cf5a52; }
 </style>

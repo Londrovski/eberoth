@@ -13,8 +13,10 @@ const DEFAULT_TYPOGRAPHY = {
   section_heading: { color: '#8a7544', size: 11, letterSpacing: 3 }
 };
 
+const DEFAULT_ZOOM_URL = 'https://us06web.zoom.us/j/81667043311?pwd=4zH4vR8CBN141mzGalaVuITTvmtUrk.1';
+
 const DEFAULT_EXTERNALS = {
-  zoom: { url: '' },
+  zoom: { url: DEFAULT_ZOOM_URL },
   dndbeyond: { baker: '', butcher: '', charlie: '', dm: '' }
 };
 
@@ -107,6 +109,7 @@ export const useAppSettingsStore = defineStore('appSettings', {
     _channel: null
   }),
   getters: {
+    defaultZoomUrl: () => DEFAULT_ZOOM_URL,
     dndbeyondUrlFor: (s) => (bucket) => {
       if (!bucket) return '';
       const map = s.externalDndbeyondUrls || {};
@@ -274,6 +277,10 @@ export const useAppSettingsStore = defineStore('appSettings', {
     async setZoomUrl(url) {
       this.externalZoomUrl = url || '';
       await appSettingsApi.setKey('external_zoom_url', { url: url || '' });
+    },
+    async resetZoomUrl() {
+      this.externalZoomUrl = DEFAULT_ZOOM_URL;
+      await appSettingsApi.setKey('external_zoom_url', { url: DEFAULT_ZOOM_URL });
     },
     async setDndbeyondUrls(map) {
       const next = {

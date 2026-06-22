@@ -9,6 +9,11 @@
   >
     <div class="dm-menu" @click.stop>
 
+      <div class="dm-label">Zoom link</div>
+      <ZoomLinkControl />
+
+      <q-separator class="sep" />
+
       <div class="dm-label">Card scale</div>
       <CardScaleControls which="card" />
 
@@ -69,6 +74,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import ZoomLinkControl from 'components/topbar/ZoomLinkControl.vue';
 import CardScaleControls from 'components/topbar/CardScaleControls.vue';
 import TypographyControls from 'components/topbar/TypographyControls.vue';
 import BackgroundControls from 'components/topbar/BackgroundControls.vue';
