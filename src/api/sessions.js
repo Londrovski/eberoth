@@ -7,7 +7,19 @@ export async function fetchAll() {
     .select('*')
     .order('number');
   if (error) throw error;
-  return data || [];
+  const sessions = data || [];
+  // Attach each session's visibility viewers so the client can filter the
+  // Campaign History list for DM "View As" previews. Real players are already
+  // RLS-filtered, so this only changes what the DM sees while viewing as
+  // someone. session_visibility is world-readable.
+  let viewersBySession = {};
+  try {
+    const { data: vis } = await supabase.from('session_visibility').select('session_id, viewer');
+    (vis || []).forEach(r => {
+      (viewersBySession[r.session_id] = viewersBySession[r.session_id] || []).push(r.viewer);
+    });
+  } catch { viewersBySession = {}; }
+  return sessions.map(s => ({ ...s, viewers: viewersBySession[s.id] || [] }));
 }
 
 export async function fetchFull(sessionId) {

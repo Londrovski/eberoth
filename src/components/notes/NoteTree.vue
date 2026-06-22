@@ -65,7 +65,7 @@
       <div v-if="!visible.length" class="empty">No notes yet. Use the buttons above to make a folder or a note.</div>
 
       <!-- Campaign History — read-only session docs, open in the main pane -->
-      <div v-if="notes.sessions.length" class="canon">
+      <div v-if="sortedSessions.length" class="canon">
         <div class="canon-head">Campaign History</div>
         <template v-for="(s, i) in sortedSessions" :key="s.id">
           <div v-if="showCanonDivider(i)" class="canon-divider"><span>The Campaign</span></div>
@@ -101,7 +101,7 @@ const viewingAsLabel = computed(() => {
 });
 
 const sortedSessions = computed(() =>
-  [...notes.sessions].sort((a, b) => (a.number || 0) - (b.number || 0))
+  [...notes.visibleSessions].sort((a, b) => (a.number || 0) - (b.number || 0))
 );
 
 // Page break: drawn once, before the first numbered campaign session that

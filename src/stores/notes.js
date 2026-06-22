@@ -32,7 +32,22 @@ export const useNotesStore = defineStore('notesTree', {
     rootNodes: (s) => childrenOf(s.nodes, null),
     activeNode: (s) => s.nodes.find(n => n.id === s.activeId) || null,
     activeSession: (s) => s.sessions.find(x => String(x.id) === String(s.activeSessionId)) || null,
-    childrenById: (s) => (parentId) => childrenOf(s.nodes, parentId)
+    childrenById: (s) => (parentId) => childrenOf(s.nodes, parentId),
+
+    // The Campaign History list, scoped to who's actually looking.
+    // Real players are already RLS-filtered by fetchAll. When the DM is
+    // "viewing as" a player (client-side only, so RLS still returns every
+    // session), filter down to what that player would really see so the
+    // preview doesn't list — or blankly open — sessions they can't access.
+    visibleSessions: (s) => {
+      const auth = useAuthStore();
+      if (!auth.isViewingAs) return s.sessions;
+      const b = auth.viewingAs;
+      return s.sessions.filter(x => {
+        const v = x.viewers || [];
+        return v.includes('*') || v.includes(b);
+      });
+    }
   },
 
   actions: {
@@ -54,9 +69,9 @@ export const useNotesStore = defineStore('notesTree', {
       } finally {
         this.loading = false;
       }
-      if (!this.sessions.length) {
-        try { this.sessions = await sessionsApi.fetchAll(); } catch { this.sessions = []; }
-      }
+      // Always refetch the session list — it must track the current viewer
+      // (account switch or DM View-As), never serve a stale cached list.
+      try { this.sessions = await sessionsApi.fetchAll(); } catch { this.sessions = []; }
     },
 
     _scheduleSave() {
