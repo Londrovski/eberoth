@@ -77,7 +77,7 @@ function getItems(query) {
     .slice(0, 8)
     .map((e) => ({ kind: 'entity', id: e.id, label: e.short_name || e.name, type: e.kind }));
   const sess = (props.sessions || [])
-    .map((s) => ({ kind: 'session', id: s.id, label: 'Session ' + s.number + (s.title ? ' - ' + s.title : ''), type: 'session' }))
+    .map((s) => ({ kind: 'session', id: s.id, label: s.title || ('Session ' + s.number), type: 'session' }))
     .filter((it) => !q || it.label.toLowerCase().includes(q))
     .slice(0, 4);
   return [...ents, ...sess];
