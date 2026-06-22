@@ -81,3 +81,24 @@ export async function fetchFull(sessionId) {
     body:    bodyRes.data && bodyRes.data.body ? bodyRes.data.body : null
   };
 }
+
+// ── DM-only: per-session visibility (mirrors entity_visibility editing) ──
+// session_visibility rows: { session_id, viewer } where viewer is one of
+// '*' (everyone), a player bucket, or 'dm'. RLS lets the DM write these.
+export async function fetchVisibility(sessionId) {
+  const { data, error } = await supabase
+    .from('session_visibility')
+    .select('viewer')
+    .eq('session_id', sessionId);
+  if (error) throw error;
+  return (data || []).map(r => r.viewer);
+}
+
+export async function setVisibility(sessionId, viewers) {
+  await supabase.from('session_visibility').delete().eq('session_id', sessionId);
+  // DM always retains access; keep the dm row implicit.
+  const rows = Array.from(new Set([...(viewers || []), 'dm']))
+    .map(v => ({ session_id: sessionId, viewer: v }));
+  const { error } = await supabase.from('session_visibility').insert(rows);
+  if (error) throw error;
+}
