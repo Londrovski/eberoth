@@ -9,19 +9,23 @@
     </div>
 
     <div v-else-if="sessions.length" class="session-list">
-      <div
-        v-for="s in sessions"
-        :key="s.id"
-        class="session-card"
-        @click="open(s)"
-      >
-        <div class="session-number">{{ s.number }}</div>
-        <div class="session-info">
-          <div class="session-title">{{ s.title || ('Session ' + s.number) }}</div>
-          <div v-if="s.row_summary" class="session-caption">{{ s.row_summary }}</div>
+      <template v-for="(s, i) in sessions" :key="s.id">
+        <div v-if="showDivider(i)" class="timeline-divider">
+          <span class="timeline-divider-label">The Campaign</span>
         </div>
-        <q-icon name="chevron_right" class="session-chevron" />
-      </div>
+        <div class="session-card" @click="open(s)">
+          <div class="session-number">
+            <q-icon v-if="s.kind === 'origin'" name="auto_awesome" size="18px" />
+            <q-icon v-else-if="s.kind === 'flashback'" name="history" size="18px" />
+            <template v-else>{{ s.number }}</template>
+          </div>
+          <div class="session-info">
+            <div class="session-title">{{ s.title || ('Session ' + s.number) }}</div>
+            <div v-if="s.row_summary" class="session-caption">{{ s.row_summary }}</div>
+          </div>
+          <q-icon name="chevron_right" class="session-chevron" />
+        </div>
+      </template>
     </div>
 
     <div v-else class="empty">No sessions yet.</div>
@@ -54,6 +58,16 @@ async function load() {
 
 watch(() => auth.viewingAs, load);
 onMounted(load);
+
+// A prequel is anything sorted ahead of Session 1 (origins/flashbacks use
+// negative numbers). The divider is drawn once, before the first real
+// timeline session that follows a prequel.
+function showDivider(i) {
+  if (i === 0) return false;
+  const cur = sessions.value[i];
+  const prev = sessions.value[i - 1];
+  return cur && prev && Number(cur.number) >= 1 && Number(prev.number) < 1;
+}
 
 function open(session) {
   sessionDetail.open(session, 'sessions-list');
@@ -95,6 +109,9 @@ function open(session) {
   flex-shrink: 0;
   opacity: 0.6;
   padding-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .session-info {
@@ -124,6 +141,30 @@ function open(session) {
   margin-top: 2px;
 }
 .session-card:hover .session-chevron { opacity: 0.9; }
+
+/* Divider between prequel (origin/flashback) entries and the live timeline */
+.timeline-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 60%;
+  margin: 16px auto 8px;
+}
+.timeline-divider::before,
+.timeline-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--gold-dim);
+  opacity: 0.4;
+}
+.timeline-divider-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--gold-dim);
+  white-space: nowrap;
+}
 
 .empty {
   color: var(--text-dim);
