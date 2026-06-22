@@ -67,16 +67,17 @@
       <!-- Campaign History — read-only session docs, open in the main pane -->
       <div v-if="notes.sessions.length" class="canon">
         <div class="canon-head">Campaign History</div>
-        <div
-          v-for="s in sortedSessions"
-          :key="s.id"
-          class="canon-row"
-          :class="{ active: isActiveSession(s) }"
-          @click="notes.setActiveSession(s.id)"
-        >
-          <q-icon name="auto_stories" size="1.2em" class="kind-ico" />
-          <span class="label">{{ sessionLabel(s) }}</span>
-        </div>
+        <template v-for="(s, i) in sortedSessions" :key="s.id">
+          <div v-if="showCanonDivider(i)" class="canon-divider"><span>The Campaign</span></div>
+          <div
+            class="canon-row"
+            :class="{ active: isActiveSession(s) }"
+            @click="notes.setActiveSession(s.id)"
+          >
+            <q-icon name="auto_stories" size="1.2em" class="kind-ico" />
+            <span class="label">{{ sessionLabel(s) }}</span>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -87,6 +88,7 @@ import { ref, computed, nextTick } from 'vue';
 import { useNotesStore } from 'src/stores/notes';
 import { useAuthStore } from 'src/stores/auth';
 import { childrenOf } from 'src/api/notepad';
+import { sessionLabel } from 'src/utils/sessionLabel';
 
 const notes = useNotesStore();
 const auth = useAuthStore();
@@ -98,12 +100,18 @@ const viewingAsLabel = computed(() => {
   return b ? b.charAt(0).toUpperCase() + b.slice(1) : '';
 });
 
-function sessionLabel(s) {
-  return 'Session ' + s.number + (s.title ? ' - ' + s.title : '');
-}
 const sortedSessions = computed(() =>
   [...notes.sessions].sort((a, b) => (a.number || 0) - (b.number || 0))
 );
+
+// Page break: drawn once, before the first numbered campaign session that
+// follows a prequel (origin/flashback, sorted ahead via negative number).
+function showCanonDivider(i) {
+  if (i === 0) return false;
+  const list = sortedSessions.value;
+  const cur = list[i], prev = list[i - 1];
+  return cur && prev && Number(cur.number) >= 1 && Number(prev.number) < 1;
+}
 
 function isActiveNote(node) {
   return notes.activeKind === 'note' && node.id === notes.activeId;
@@ -243,4 +251,8 @@ function onDragEnd() { dragId.value = null; dropId.value = null; }
 }
 .canon-row:hover { background: var(--bg-panel-2); color: var(--gold-bright); }
 .canon-row.active { background: rgba(201,169,97,0.16); border-left-color: var(--gold); color: var(--gold-bright); }
+
+.canon-divider { display: flex; align-items: center; gap: 8px; width: 72%; margin: 10px auto 8px; }
+.canon-divider::before, .canon-divider::after { content: ''; flex: 1; height: 1px; background: var(--gold-dim); opacity: 0.4; }
+.canon-divider span { font-size: 0.62em; text-transform: uppercase; letter-spacing: 0.14em; color: var(--gold-dim); white-space: nowrap; }
 </style>

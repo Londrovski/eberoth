@@ -47,6 +47,7 @@ import SessionReadView from 'components/notes/SessionReadView.vue';
 import { useNotesStore } from 'src/stores/notes';
 import { useAuthStore } from 'src/stores/auth';
 import { useUserPrefsStore } from 'src/stores/user-prefs';
+import { sessionLabel } from 'src/utils/sessionLabel';
 
 const notes = useNotesStore();
 const auth = useAuthStore();
@@ -59,10 +60,7 @@ const userZoom = computed(() => prefs.userZoom || 1);
 
 const headTitle = computed(() => {
   if (notes.activeKind === 'note' && activeNote.value) return activeNote.value.label;
-  if (notes.activeKind === 'session' && activeSession.value) {
-    const s = activeSession.value;
-    return 'Session ' + s.number + (s.title ? ' - ' + s.title : '');
-  }
+  if (notes.activeKind === 'session' && activeSession.value) return sessionLabel(activeSession.value);
   return '';
 });
 
@@ -143,7 +141,7 @@ onBeforeUnmount(() => {
 </style>
 
 <style>
-/* ── Notes: global editor surface styles (unscoped on purpose) ─────────── */
+/* ── Notes: global editor surface styles (unscoped on purpose) ───────── */
 .ProseMirror {
   outline: none;
   padding: 20px 26px 70px;
