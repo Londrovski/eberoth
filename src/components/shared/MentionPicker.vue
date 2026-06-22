@@ -42,7 +42,9 @@ function onClick(idx) {
 <style scoped>
 .mention-picker {
   position: fixed;
-  z-index: 3000;
+  /* Above Quasar's dialog overlay (~6000) so the @ menu shows in front of
+     the entity/session detail card, not behind it. */
+  z-index: 7000;
   background: var(--bg-panel);
   border: 1px solid var(--gold-dim);
   border-radius: 4px;
