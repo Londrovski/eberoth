@@ -22,6 +22,9 @@ function makePopup() {
   const el = document.createElement('div');
   el.className = 'mention-suggest';
   el.style.display = 'none';
+  // Sit above Quasar's dialog overlay (~6000) so the popup is never hidden
+  // behind the entity/session detail panel when typing @ in its notes.
+  el.style.zIndex = '7000';
   document.body.appendChild(el);
   let items = [];
   let command = null;
