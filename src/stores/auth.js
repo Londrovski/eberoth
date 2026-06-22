@@ -5,7 +5,7 @@
 //
 // Mapping inherited from the original static site (03-auth.js):
 //   MAREN   → baker    (Kalvorn)
-//   SAMAEL  → butcher  (Azrael)
+//   SYLVIA  → butcher  (Azrael)
 //   TEACHER → charlie  (Dirk)
 //   THOREBE → dm
 // Email = '<bucket>@compendium.local', password = the passcode.
@@ -88,7 +88,7 @@ export const useAuthStore = defineStore('auth', {
 // passcode → bucket. Matches the original site's PASSCODES.
 const PASSCODES = {
   'MAREN':   'baker',
-  'SAMAEL':  'butcher',
+  'SYLVIA':  'butcher',
   'TEACHER': 'charlie',
   'THOREBE': 'dm'
 };
