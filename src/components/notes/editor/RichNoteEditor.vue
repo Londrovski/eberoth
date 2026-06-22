@@ -1,6 +1,6 @@
 <template>
   <div class="rich-editor">
-    <div v-if="editable" class="toolbar">
+    <div v-if="editable && !minimal" class="toolbar">
       <button class="tb" :class="{ on: is('bold') }" title="Bold" @mousedown.prevent="run(c=>c.toggleBold())"><b>B</b></button>
       <button class="tb" :class="{ on: is('italic') }" title="Italic" @mousedown.prevent="run(c=>c.toggleItalic())"><i>I</i></button>
       <button class="tb" :class="{ on: is('underline') }" title="Underline" @mousedown.prevent="run(c=>c.toggleUnderline())"><u>U</u></button>
@@ -57,6 +57,7 @@ import { useSessionDetail } from 'src/composables/useSessionDetail';
 const props = defineProps({
   node: { type: Object, default: null },
   editable: { type: Boolean, default: true },
+  minimal: { type: Boolean, default: false },
   sessions: { type: Array, default: () => [] }
 });
 const emit = defineEmits(['change']);
