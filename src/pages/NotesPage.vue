@@ -145,11 +145,18 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 700px) {
-  .notes-page { height: auto; min-height: 100vh; }
+  .notes-page { height: calc(100vh - 64px); min-height: 0; }
   .notes-layout { flex-direction: column; }
-  .tree-pane { width: 100% !important; max-height: 42vh; border-right: none; border-bottom: 2px solid var(--gold-dim); }
+  .tree-pane {
+    width: 100% !important;
+    height: 40vh;
+    max-height: 40vh;
+    overflow: hidden;
+    border-right: none;
+    border-bottom: 2px solid var(--gold-dim);
+  }
   .resizer { display: none; }
-  .editor-pane { min-height: 58vh; }
+  .editor-pane { flex: 1 1 auto; min-height: 0; }
 }
 </style>
 
