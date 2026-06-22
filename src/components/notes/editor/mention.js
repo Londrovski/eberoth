@@ -29,11 +29,18 @@ function makePopup() {
   let items = [];
   let command = null;
   let selected = 0;
+  let lastRect = null;
 
-  function position(rect) {
-    if (!rect) return;
-    el.style.top = rect.bottom + 4 + 'px';
-    el.style.left = rect.left + 'px';
+  // Place the popup at the caret, flipping above it when it would overflow
+  // the bottom of the viewport, so the whole list stays visible.
+  function reposition() {
+    if (!lastRect) return;
+    const h = el.offsetHeight || 0;
+    const vh = (typeof window !== 'undefined' && window.innerHeight) || 0;
+    const below = lastRect.bottom + 4;
+    const flipUp = vh && (below + h > vh) && (lastRect.top - h - 4 > 0);
+    el.style.top = (flipUp ? Math.max(4, lastRect.top - h - 4) : below) + 'px';
+    el.style.left = lastRect.left + 'px';
   }
   function pick(i) {
     const it = items[i];
@@ -63,8 +70,9 @@ function makePopup() {
       items = props.items || [];
       command = props.command;
       selected = 0;
-      position(props.clientRect && props.clientRect());
-      render();
+      lastRect = (props.clientRect && props.clientRect()) || lastRect;
+      render();      // build + show first, so offsetHeight is measurable
+      reposition();  // then place (flips up if needed)
     },
     onKeyDown({ event }) {
       if (!items.length) return false;

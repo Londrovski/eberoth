@@ -28,6 +28,7 @@ import { ref, computed, onScopeDispose } from 'vue';
 import { useEntitiesStore } from 'src/stores/entities';
 import { useEntityDetail } from 'src/composables/useEntityDetail';
 import { useSessionDetail } from 'src/composables/useSessionDetail';
+import { sessionLabel } from 'src/utils/sessionLabel';
 import * as sessionsApi from 'src/api/sessions';
 
 let sessionsCache = null;
@@ -52,7 +53,7 @@ export function useMentionPicker({ onInput } = {}) {
   const isOpen = ref(false);
   const query = ref('');
   const selectedIndex = ref(0);
-  const position = ref({ top: 0, left: 0 });
+  const caretRect = ref(null);
   const sessionRows = ref([]);
 
   // The element + range where the @ trigger lives. Used at commit time
@@ -80,17 +81,30 @@ export function useMentionPicker({ onInput } = {}) {
       }));
     const sess = sessionRows.value
       .filter(s => {
-        const label = (s.title || ('Session ' + s.number)).toLowerCase();
+        const label = sessionLabel(s).toLowerCase();
         return !q || label.includes(q);
       })
       .slice(0, 4)
       .map(s => ({
         kind: 'session',
         id: s.id,
-        label: s.title || ('Session ' + s.number),
+        label: sessionLabel(s),
         type: 'session'
       }));
     return [...ents, ...sess];
+  });
+
+  // Anchor at the caret, flipping above it when the list would overflow the
+  // bottom of the viewport so the whole popup stays visible.
+  const position = computed(() => {
+    const r = caretRect.value;
+    if (!r) return { top: 0, left: 0 };
+    const count = Math.min(results.value.length || 1, 12);
+    const estH = count * 30 + 12;
+    const vh = (typeof window !== 'undefined' && window.innerHeight) || 0;
+    const below = r.bottom + 4;
+    const flipUp = vh && (below + estH > vh) && (r.top - estH - 4 > 0);
+    return { top: flipUp ? Math.max(4, r.top - estH - 4) : below, left: r.left };
   });
 
   function openPicker(el, at) {
@@ -101,16 +115,12 @@ export function useMentionPicker({ onInput } = {}) {
     query.value = '';
     selectedIndex.value = 0;
 
-    // Compute caret position so the picker can render anchored to it.
+    // Capture the caret rect so the picker can anchor (and flip) to it.
     try {
       const sel = window.getSelection();
       if (sel.rangeCount) {
         const r = sel.getRangeAt(0).cloneRange();
-        const rect = r.getBoundingClientRect();
-        position.value = {
-          top:  rect.bottom + 4,
-          left: rect.left
-        };
+        caretRect.value = r.getBoundingClientRect();
       }
     } catch {}
 
@@ -232,6 +242,12 @@ export function useMentionPicker({ onInput } = {}) {
     // Open or update query.
     if (!isOpen.value) {
       openPicker(el, { node, offset: atOffset });
+    } else {
+      // Keep the anchor fresh as the caret moves while typing the query.
+      try {
+        const s2 = window.getSelection();
+        if (s2.rangeCount) caretRect.value = s2.getRangeAt(0).cloneRange().getBoundingClientRect();
+      } catch {}
     }
     query.value = text.slice(atOffset + 1, offsetBeforeCaret);
     selectedIndex.value = 0;

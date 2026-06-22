@@ -53,6 +53,7 @@ import { buildMention } from './mention';
 import { useEntitiesStore } from 'src/stores/entities';
 import { useEntityDetail } from 'src/composables/useEntityDetail';
 import { useNotesStore } from 'src/stores/notes';
+import { sessionLabel } from 'src/utils/sessionLabel';
 
 const props = defineProps({
   node: { type: Object, default: null },
@@ -77,7 +78,7 @@ function getItems(query) {
     .slice(0, 8)
     .map((e) => ({ kind: 'entity', id: e.id, label: e.short_name || e.name, type: e.kind }));
   const sess = (props.sessions || [])
-    .map((s) => ({ kind: 'session', id: s.id, label: s.title || ('Session ' + s.number), type: 'session' }))
+    .map((s) => ({ kind: 'session', id: s.id, label: sessionLabel(s), type: 'session' }))
     .filter((it) => !q || it.label.toLowerCase().includes(q))
     .slice(0, 4);
   return [...ents, ...sess];
