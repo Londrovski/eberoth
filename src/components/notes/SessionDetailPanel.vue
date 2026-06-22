@@ -31,8 +31,8 @@
           <q-btn flat round dense icon="close" class="close-btn" @click="close" />
         </div>
         <div v-if="session" class="title-block">
-          <div class="session-detail-number">Session {{ session.number }}</div>
-          <h2 class="session-detail-title">{{ session.title || ('Session ' + session.number) }}</h2>
+          <div v-if="!session.kind" class="session-detail-number">Session {{ session.number }}</div>
+          <h2 class="session-detail-title">{{ sessionLabel(session) }}</h2>
         </div>
       </header>
 
@@ -47,6 +47,8 @@
           </q-banner>
 
           <template v-else-if="session">
+            <SessionVisibilityControl :session-id="session.id" />
+
             <div v-if="session.row_summary" class="session-row-summary" v-html="session.row_summary"></div>
 
             <div v-if="full.body" class="player-body">
@@ -95,6 +97,8 @@ import * as sessionsApi from 'src/api/sessions';
 import { useSessionDetail } from 'src/composables/useSessionDetail';
 import { useViewer } from 'src/composables/useViewer';
 import { useDmHighlightStore } from 'src/stores/dm-highlight';
+import { sessionLabel } from 'src/utils/sessionLabel';
+import SessionVisibilityControl from 'components/notes/SessionVisibilityControl.vue';
 
 const sessionDetail = useSessionDetail();
 const viewer        = useViewer();

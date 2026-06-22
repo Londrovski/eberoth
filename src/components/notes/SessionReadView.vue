@@ -4,6 +4,8 @@
     <div v-else-if="error" class="state err">Couldn't load this session.</div>
 
     <div v-else class="surface">
+      <SessionVisibilityControl v-if="session" :session-id="session.id" />
+
       <div v-if="full.body" class="player-body">
         <div class="player-body-label">For you</div>
         <div class="player-body-text" v-html="full.body"></div>
@@ -45,6 +47,7 @@ import * as sessionsApi from 'src/api/sessions';
 import { useEntityDetail } from 'src/composables/useEntityDetail';
 import { useSessionDetail } from 'src/composables/useSessionDetail';
 import { useNotesStore } from 'src/stores/notes';
+import SessionVisibilityControl from 'components/notes/SessionVisibilityControl.vue';
 
 const props = defineProps({ session: { type: Object, required: true } });
 
