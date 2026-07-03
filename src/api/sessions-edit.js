@@ -11,6 +11,14 @@ export async function updateBlockText(id, text) {
   if (error) throw error;
 }
 
+export async function updateBlockType(id, type) {
+  const { error } = await supabase
+    .from('session_blocks')
+    .update({ type })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function updateSummaryLine(id, line) {
   const { error } = await supabase
     .from('session_summary_lines')
