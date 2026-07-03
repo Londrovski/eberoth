@@ -6,6 +6,17 @@
     <div v-else class="surface">
       <SessionVisibilityControl v-if="session" :session-id="session.id" />
 
+      <div v-if="viewer.isDM" class="dm-edit-bar">
+        <template v-if="!editing">
+          <button class="dm-btn" @click="startEdit">Edit</button>
+        </template>
+        <template v-else>
+          <button class="dm-btn primary" :disabled="saving" @click="save">{{ saving ? 'Saving…' : 'Save' }}</button>
+          <button class="dm-btn" :disabled="saving" @click="cancel">Cancel</button>
+          <span class="dm-hint">Editing raw text — HTML and @-mentions are preserved. Use Highlight to make a block a gold callout.</span>
+        </template>
+      </div>
+
       <div v-if="full.body" class="player-body">
         <div class="player-body-label">For you</div>
         <div class="player-body-text" v-html="full.body"></div>
@@ -13,26 +24,45 @@
 
       <div v-if="full.summary.length" class="summary-block">
         <div class="block-label">Summary</div>
-        <ul class="summary-list">
+        <ul v-if="!editing" class="summary-list">
           <li v-for="line in full.summary" :key="line.id" v-html="line.line"></li>
         </ul>
+        <div v-else class="edit-list">
+          <textarea v-for="line in full.summary" :key="line.id" class="edit-area" rows="2" v-model="edits.summary[line.id]"></textarea>
+        </div>
       </div>
 
       <div v-for="part in full.parts" :key="part.id" class="part-block">
         <div class="part-label">{{ part.label }}</div>
         <div v-for="b in part.blocks" :key="b.id" class="block">
-          <p v-if="b.type === 'para' && b.text" class="block-para" v-html="b.text"></p>
-          <div v-else-if="b.type === 'highlight' && b.text" class="block-highlight" v-html="b.text"></div>
-          <div v-else-if="b.type === 'takeaway' && b.text" class="block-takeaway">
-            <q-icon name="auto_awesome" size="15px" class="q-mr-xs" /><span v-html="b.text"></span>
-          </div>
-          <div v-else-if="b.type === 'testimonies'" class="block-testimonies">
-            <p v-if="b.text" class="block-para" v-html="b.text"></p>
-            <div v-for="t in b.testimonies" :key="t.id" class="testimony">
-              <span class="testimony-name">{{ t.name }}:</span>
-              <span class="testimony-text" v-html="t.text"></span>
+          <template v-if="!editing">
+            <p v-if="b.type === 'para' && b.text" class="block-para" v-html="b.text"></p>
+            <div v-else-if="b.type === 'highlight' && b.text" class="block-highlight" v-html="b.text"></div>
+            <div v-else-if="b.type === 'takeaway' && b.text" class="block-takeaway">
+              <q-icon name="auto_awesome" size="15px" class="q-mr-xs" /><span v-html="b.text"></span>
             </div>
-          </div>
+            <div v-else-if="b.type === 'testimonies'" class="block-testimonies">
+              <p v-if="b.text" class="block-para" v-html="b.text"></p>
+              <div v-for="t in b.testimonies" :key="t.id" class="testimony">
+                <span class="testimony-name">{{ t.name }}:</span>
+                <span class="testimony-text" v-html="t.text"></span>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div v-if="b.type !== 'testimonies'" class="edit-block">
+              <div class="edit-type-row">
+                <button class="type-btn" :class="{ on: edits.type[b.id] === 'para' }" @click="edits.type[b.id] = 'para'">Para</button>
+                <button class="type-btn" :class="{ on: edits.type[b.id] === 'highlight' }" @click="edits.type[b.id] = 'highlight'">Highlight</button>
+                <button class="type-btn" :class="{ on: edits.type[b.id] === 'takeaway' }" @click="edits.type[b.id] = 'takeaway'">Takeaway</button>
+              </div>
+              <textarea class="edit-area" rows="4" v-model="edits.text[b.id]"></textarea>
+            </div>
+            <div v-else class="edit-block">
+              <span class="dm-hint">Testimony blocks are edited in the database.</span>
+              <p v-if="b.text" class="block-para" v-html="b.text"></p>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -42,31 +72,80 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, reactive, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import * as sessionsApi from 'src/api/sessions';
+import * as sessionsEditApi from 'src/api/sessions-edit';
 import { useEntityDetail } from 'src/composables/useEntityDetail';
 import { useNotesStore } from 'src/stores/notes';
+import { useViewer } from 'src/composables/useViewer';
 import SessionVisibilityControl from 'components/notes/SessionVisibilityControl.vue';
 
 const props = defineProps({ session: { type: Object, required: true } });
 
 const detail = useEntityDetail();
 const notes = useNotesStore();
+const viewer = useViewer();
+const $q = useQuasar();
 
 const loading = ref(true);
 const error = ref(false);
 const full = ref({ summary: [], parts: [], body: null });
 
+const editing = ref(false);
+const saving = ref(false);
+const edits = reactive({ summary: {}, text: {}, type: {} });
+
 async function load(id) {
-  loading.value = true; error.value = false;
+  loading.value = true; error.value = false; editing.value = false;
   try { full.value = await sessionsApi.fetchFull(id); }
   catch { error.value = true; }
   finally { loading.value = false; }
 }
 
+function startEdit() {
+  edits.summary = {}; edits.text = {}; edits.type = {};
+  for (const line of full.value.summary) edits.summary[line.id] = line.line;
+  for (const part of full.value.parts) {
+    for (const b of part.blocks) {
+      edits.text[b.id] = b.text || '';
+      edits.type[b.id] = b.type;
+    }
+  }
+  editing.value = true;
+}
+
+function cancel() { editing.value = false; }
+
+async function save() {
+  saving.value = true;
+  try {
+    for (const line of full.value.summary) {
+      const next = edits.summary[line.id];
+      if (next != null && next !== line.line) await sessionsEditApi.updateSummaryLine(line.id, next);
+    }
+    for (const part of full.value.parts) {
+      for (const b of part.blocks) {
+        if (b.type === 'testimonies') continue;
+        const nextText = edits.text[b.id];
+        if (nextText != null && nextText !== (b.text || '')) await sessionsEditApi.updateBlockText(b.id, nextText);
+        const nextType = edits.type[b.id];
+        if (nextType && nextType !== b.type) await sessionsEditApi.updateBlockType(b.id, nextType);
+      }
+    }
+    if ($q && $q.notify) $q.notify({ type: 'positive', message: 'Session saved.' });
+    await load(props.session.id);
+  } catch {
+    if ($q && $q.notify) $q.notify({ type: 'negative', message: 'Save failed.' });
+  } finally {
+    saving.value = false;
+  }
+}
+
 // Clicking a link inside a session: entity links open the entity overlay;
 // session links jump the Notes main pane straight to that document.
 function onClick(e) {
+  if (editing.value) return;
   const a = e.target && e.target.closest && e.target.closest('a.mention');
   if (!a) return;
   e.preventDefault();
@@ -88,6 +167,22 @@ watch(() => props.session && props.session.id, (id) => { if (id) load(id); }, { 
 .surface { max-width: 880px; padding: 22px 28px 70px; color: var(--text); font-size: calc(16px * var(--nz, 1)); line-height: 1.7; }
 .state { padding: 40px; text-align: center; color: var(--text-dim); font-style: italic; }
 .state.err { color: var(--red); }
+
+.dm-edit-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.dm-btn { height: 30px; padding: 0 14px; background: transparent; border: 1px solid var(--gold-dim); border-radius: 4px; color: var(--gold); cursor: pointer; font-size: 13px; font-family: inherit; }
+.dm-btn:hover { background: rgba(201,169,97,0.14); color: var(--gold-bright); }
+.dm-btn.primary { background: rgba(201,169,97,0.18); color: var(--gold-bright); }
+.dm-btn:disabled { opacity: 0.5; cursor: default; }
+.dm-hint { font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+.edit-list { display: flex; flex-direction: column; gap: 6px; }
+.edit-block { margin-bottom: 12px; }
+.edit-type-row { display: flex; gap: 4px; margin-bottom: 4px; }
+.type-btn { height: 22px; padding: 0 8px; font-size: 11px; background: transparent; border: 1px solid var(--border); border-radius: 3px; color: var(--text-dim); cursor: pointer; font-family: inherit; }
+.type-btn:hover { color: var(--gold-bright); border-color: var(--gold-dim); }
+.type-btn.on { color: var(--gold); border-color: var(--gold-dim); background: rgba(201,169,97,0.16); }
+.edit-area { width: 100%; box-sizing: border-box; background: var(--bg-panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-family: inherit; font-size: 0.95em; line-height: 1.6; resize: vertical; }
+.edit-area:focus { outline: none; border-color: var(--gold-dim); }
 
 .player-body { border-left: 3px solid var(--gold-dim); background: rgba(201,169,97,0.08); padding: 10px 14px; border-radius: 4px; margin-bottom: 18px; }
 .player-body-label { font-size: 0.78em; color: var(--gold-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
