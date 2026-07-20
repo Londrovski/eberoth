@@ -2,20 +2,13 @@
 // Local REST API plugin (https://github.com/coddingtonbear/obsidian-local-rest-api).
 //
 // This powers the DM view ONLY. It runs entirely in the DM's browser and
-// fetches from the DM's own machine (http://127.0.0.1:27123 by default),
+// fetches from the DM's own machine (https://127.0.0.1:27124 by default),
 // so no vault content ever touches a server. Because it reads localhost,
 // it only works on the machine running Obsidian with the plugin enabled —
 // desktop-only by design.
 //
 // Config (baseUrl + apiKey) lives in the app-settings store under the
 // 'obsidian_api' key (DM-write in Supabase), set via the DM Tools menu.
-//
-// Gotchas handled here:
-//  - The plugin must allow the site's origin via CORS, or the browser blocks
-//    the fetch. We surface a clear error rather than failing silently.
-//  - An https page (eberoth.pages.dev) calling http://localhost is a
-//    mixed-content block in most browsers. Running the app locally over http
-//    (or allow-listing the origin) avoids it. We detect and message this too.
 
 import { ref, computed } from 'vue';
 import { useAppSettingsStore } from 'src/stores/app-settings';
@@ -32,7 +25,6 @@ const FOLDERS = {
 // ---- tiny YAML frontmatter parser -------------------------------------
 // Handles the subset the Eberoth cards use: scalars, quoted strings,
 // inline [a, b] arrays, block "|" scalars, and simple "- item" lists.
-// Not a general YAML engine — deliberately small and predictable.
 function parseFrontmatter(raw) {
   const text = String(raw || '').replace(/\r\n/g, '\n');
   const m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
@@ -50,11 +42,10 @@ function parseFrontmatter(raw) {
     const key = kv[1];
     let rest = kv[2];
 
-    // Block scalar: "key: |" — gather subsequent indented lines.
+    // Block scalar: "key: |" — gather subsequent indented lines (keeps blank lines).
     if (rest.trim() === '|' || rest.trim() === '|-' || rest.trim() === '>') {
       const block = [];
       i++;
-      // Determine indent from the first non-empty following line.
       let indent = null;
       while (i < lines.length) {
         const l = lines[i];
@@ -62,14 +53,14 @@ function parseFrontmatter(raw) {
         const lead = l.match(/^(\s+)/);
         const thisIndent = lead ? lead[1].length : 0;
         if (indent === null) {
-          if (thisIndent === 0) break; // no indented block
+          if (thisIndent === 0) break;
           indent = thisIndent;
         }
         if (thisIndent < indent) break;
         block.push(l.slice(indent));
         i++;
       }
-      data[key] = block.join('\n').trim();
+      data[key] = block.join('\n').replace(/\n{3,}/g, '\n\n').trim();
       continue;
     }
 
@@ -98,7 +89,6 @@ function parseFrontmatter(raw) {
       continue;
     }
 
-    // Plain scalar.
     data[key] = stripQuotes(rest.trim());
     i++;
   }
@@ -114,7 +104,7 @@ function stripQuotes(s) {
   return t;
 }
 
-// Turn "[[House Halvorn]]" or "[[Orthon Halvorn|Orthon]]" into a clean name.
+// Turn "[[House Halvorn]]" or "[[Orthon Halvorn|Orthon]]" into a clean display name.
 function delink(s) {
   if (!s) return s;
   return String(s).replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, a, b) => (b || a).trim());
@@ -123,43 +113,13 @@ function delinkList(arr) {
   if (!arr) return [];
   return (Array.isArray(arr) ? arr : [arr]).map(delink).filter(Boolean);
 }
-
-// Parse the loose "- **Name** — *(type)* text" relation blocks factions/threads
-// use inside a block scalar into [{name,type,text}] rows. Falls back to a plain
-// paragraph if it doesn't match the pattern.
-function parseRelationBlock(block) {
-  if (!block) return { rows: [], text: '' };
-  const lines = String(block).split('\n').map(l => l.trim()).filter(Boolean);
-  const rows = [];
-  let leftover = [];
-  for (const l of lines) {
-    const m = l.match(/^-\s+\*\*(.+?)\*\*\s*(?:—|-)?\s*(?:\*\((.+?)\)\*)?\s*(.*)$/);
-    if (m) {
-      rows.push({ name: delink(m[1]), type: m[2] || '', text: delink(m[3] || '') });
-    } else if (l.startsWith('-')) {
-      rows.push({ name: '', type: '', text: delink(l.replace(/^-\s*/, '')) });
-    } else {
-      leftover.push(delink(l));
-    }
-  }
-  return { rows, text: leftover.join(' ') };
-}
-
-// Split a block scalar into bullet lines (for logs, open questions, etc).
-function toLines(block) {
-  if (!block) return [];
-  if (Array.isArray(block)) return block.map(delink);
-  return String(block).split('\n')
-    .map(l => l.replace(/^\s*-\s*/, '').trim())
-    .map(delink)
-    .filter(Boolean);
+function slug(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 // ---- image base (reuse the compendium's GitHub image host) ------------
 const IMAGE_BASE = 'https://raw.githubusercontent.com/Londrovski/eberoth/main/images/';
 function imageFromName(name) {
-  // Vault sigil field is a full path "2. Content/1. Images/House Halvorn.png";
-  // the compendium hosts bare filenames. Take the basename.
   if (!name) return null;
   const base = String(name).split('/').pop();
   return IMAGE_BASE + encodeURIComponent(base);
@@ -190,7 +150,6 @@ export function useObsidianVault() {
   }
 
   async function apiReadFile(path) {
-    // Ask for raw markdown, not the JSON wrapper.
     const url = `${base()}/vault/${encodeURI(path)}`;
     const res = await fetch(url, { headers: { ...headers(), Accept: 'text/markdown' } });
     if (!res.ok) throw new Error(`Read ${path} → ${res.status}`);
@@ -201,7 +160,6 @@ export function useObsidianVault() {
     const folder = FOLDERS[kind];
     const files = await apiListDir(folder);
     const out = [];
-    // Sequential-ish with a small concurrency cap to be gentle on the plugin.
     const CHUNK = 6;
     for (let i = 0; i < files.length; i += CHUNK) {
       const slice = files.slice(i, i + CHUNK);
@@ -219,7 +177,6 @@ export function useObsidianVault() {
   }
 
   async function loadPlayers() {
-    // Players are folders-per-PC; grab the main <Name>.md + optional Spotlight.
     let subdirs = [];
     try {
       const url = `${base()}/vault/${encodeURI(FOLDERS.player)}/`;
@@ -228,17 +185,18 @@ export function useObsidianVault() {
         const json = await res.json();
         subdirs = (json.files || []).filter(f => f.endsWith('/')).map(f => f.replace(/\/$/, ''));
       }
-    } catch (e) { /* players are optional / thin */ }
+    } catch (e) { /* players optional */ }
     const players = [];
     for (const dir of subdirs) {
       try {
         const files = await apiListDir(`${FOLDERS.player}/${dir}`);
-        const mainFile = files.find(f => f.replace('.md', '') === dir) || files[0];
+        const mainFile = files.find(f => f.replace('.md', '') === dir)
+          || files.find(f => !/spotlight/i.test(f)) || files[0];
         const spotFile = files.find(f => /spotlight/i.test(f));
         const mainMd = mainFile ? await apiReadFile(`${FOLDERS.player}/${dir}/${mainFile}`) : '';
         const spotMd = spotFile ? await apiReadFile(`${FOLDERS.player}/${dir}/${spotFile}`) : '';
         players.push({ name: dir, main: parseFrontmatter(mainMd), spotlight: parseFrontmatter(spotMd) });
-      } catch (e) { /* skip a broken PC folder */ }
+      } catch (e) { /* skip broken PC folder */ }
     }
     return players;
   }
@@ -258,7 +216,9 @@ export function useObsidianVault() {
     } catch (e) {
       const msg = String(e.message || e);
       if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
-        error.value = 'Could not reach Obsidian. Check Obsidian is open, the Local REST API plugin is running, and (if on the https site) that the browser allows localhost — see DM Tools.';
+        error.value = 'Could not reach Obsidian. Check Obsidian is open, the Local REST API plugin is running, and that the browser trusts the cert / allows the origin — see DM Tools.';
+      } else if (/→ 401/.test(msg)) {
+        error.value = 'Obsidian rejected the API key (401). Re-copy the key from the Local REST API plugin settings into DM Tools.';
       } else {
         error.value = msg;
       }
@@ -267,25 +227,50 @@ export function useObsidianVault() {
     }
   }
 
-  // ---- shapers: raw parsed files → the view model the DM page renders ----
+  // ---- view models: keep raw block text; render happens in the renderer ----
   const npcs = computed(() => raw.value.npcs.map(shapeNpc).filter(Boolean));
   const factions = computed(() => {
     const list = raw.value.factions.map(shapeFaction).filter(Boolean);
-    // attach connected NPCs by faction name
     const byFac = {};
     for (const n of npcs.value) { (byFac[n.faction] = byFac[n.faction] || []).push(n); }
-    for (const f of list) { f.npcs = byFac[f.name] || []; }
+    for (const f of list) {
+      const memberIds = new Set(f.members.map(m => slug(m)));
+      const byMember = npcs.value.filter(n => memberIds.has(n.id));
+      const byFaction = byFac[f.name] || [];
+      const seen = new Set();
+      f.npcs = [...byMember, ...byFaction].filter(n => {
+        if (seen.has(n.id)) return false;
+        seen.add(n.id); return true;
+      });
+    }
     return list;
   });
   const lore = computed(() => raw.value.lore.map(shapeLore).filter(Boolean));
   const threads = computed(() => raw.value.threads.map(shapeThread).filter(Boolean));
   const players = computed(() => raw.value.players.map(shapePlayer).filter(Boolean));
 
+  // ---- global entity index for wikilink resolution ----
+  const index = computed(() => {
+    const idx = {};
+    const add = (name, kind, id) => { if (name) idx[normKey(name)] = { kind, id }; };
+    for (const n of npcs.value) { add(n.name, 'npc', n.id); (n.aliases || []).forEach(a => add(a, 'npc', n.id)); }
+    for (const f of factions.value) add(f.name, 'faction', f.id);
+    for (const t of threads.value) add(t.name, 'thread', t.id);
+    for (const l of lore.value) add(l.name, 'lore', l.id);
+    for (const p of players.value) { add(p.name, 'player', p.id); if (p.trueName) add(p.trueName, 'player', p.id); }
+    return idx;
+  });
+
+  function resolveLink(name) {
+    return index.value[normKey(name)] || null;
+  }
+
   function shapeNpc(row) {
     const d = row.data || {};
     if (!d.name) return null;
     return {
       id: slug(d.name), name: d.name, faction: delink(d.faction) || '—',
+      aliases: Array.isArray(d.aliases) ? d.aliases : (d.aliases ? [d.aliases] : []),
       role: d.role || '', status: d.status || 'active', disposition: d.disposition || 'unknown',
       lastSession: d.last_session ?? null, knowsParty: d.knows_party || '',
       currentSituation: d.current_situation || '', img: imageFromName(d.name + '.png'),
@@ -293,8 +278,8 @@ export function useObsidianVault() {
       context: d.context, staging: d.staging, desires: d.desires, actions: d.actions,
       characterKnowledge: d.character_knowledge, playerKnowledge: d.player_knowledge,
       dmSecrets: d.dm_secrets, forwardProjection: d.forward_projection,
-      openQuestions: toLines(d.open_questions), threads: delinkList(d.linked_threads),
-      log: toLines(d.log),
+      openQuestions: d.open_questions, linkedThreads: delinkList(d.linked_threads),
+      log: d.log,
       thin: !d.desires && !d.dm_secrets
     };
   }
@@ -309,10 +294,8 @@ export function useObsidianVault() {
       status: d.status || '', alignment: d.alignment || '',
       strengths: d.strengths || '', weaknesses: d.weaknesses || '',
       territory: d.territory || '', goalsShort: d.goals_short || '', goalsLong: d.goals_long || '',
-      relations: parseRelationBlock(d.relations).rows,
-      playerConnections: d.player_connections || '',
-      threads: parseRelationBlock(d.threads).rows.map(r => r.name || r.text),
-      openQuestions: toLines(d.open_questions), log: toLines(d.log),
+      relations: d.relations || '', playerConnections: d.player_connections || '',
+      threads: d.threads || '', openQuestions: d.open_questions || '', log: d.log || '',
       npcs: []
     };
   }
@@ -322,9 +305,7 @@ export function useObsidianVault() {
     if (!d.name) return null;
     return {
       id: slug(d.name), name: d.name, revealState: d.reveal_state || '',
-      feeds: delinkList(d.feeds),
-      // body carries Truth / What's Known / Open Questions as markdown sections
-      body: row.body || ''
+      feeds: d.feeds || [], body: row.body || ''
     };
   }
 
@@ -335,10 +316,11 @@ export function useObsidianVault() {
       id: slug(d.name), name: d.name, state: d.state || 'active',
       lastMoved: d.last_moved ?? null, spine: delink(d.spine) || '',
       tension: d.tension || '', colliding: d.colliding || '',
-      forces: parseRelationBlock(d.forces).rows,
+      forces: d.forces || '',
       onTable: d.on_table || '', offTable: d.off_table || '',
       nextBeat: d.next_beat || '', trajectory: d.trajectory || '',
-      openQuestions: toLines(d.open_questions), log: toLines(d.log)
+      residue: d.residue || '',
+      openQuestions: d.open_questions || '', log: d.log || ''
     };
   }
 
@@ -346,10 +328,8 @@ export function useObsidianVault() {
     const d = p.main?.data || {};
     const name = d.name || p.name;
     return {
-      id: slug(name), name,
+      id: slug(name), name, trueName: d.true_name || '',
       img: imageFromName(name + '.png'),
-      // Player files are older prose format; expose frontmatter if present
-      // plus the raw body sections for display.
       role: d.role || '', class: d.class || '', player: d.player || '',
       body: p.main?.body || '',
       spotlight: p.spotlight?.body || '',
@@ -361,11 +341,10 @@ export function useObsidianVault() {
     loading, error, configured,
     loadAll,
     npcs, factions, lore, threads, players,
-    // expose helpers the page may reuse
-    _util: { delink, toLines, imageFromName }
+    index, resolveLink
   };
 }
 
-function slug(s) {
-  return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function normKey(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
