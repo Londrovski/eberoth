@@ -19,6 +19,12 @@ const routes = [
       { path: '',      name: 'home',  component: () => import('pages/HomePage.vue') },
       { path: 'notes', name: 'notes', component: () => import('pages/NotesPage.vue') },
       {
+        path: 'dm',
+        name: 'dm',
+        component: () => import('pages/DmPage.vue'),
+        beforeEnter: requireDM
+      },
+      {
         path: 'admin/usage',
         name: 'admin-usage',
         component: () => import('pages/AdminUsagePage.vue'),

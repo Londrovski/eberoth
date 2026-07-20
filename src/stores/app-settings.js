@@ -20,6 +20,13 @@ const DEFAULT_EXTERNALS = {
   dndbeyond: { baker: '', butcher: '', charlie: '', dm: '' }
 };
 
+// DM-only: the Obsidian Local REST API the DM view reads the vault from.
+// baseUrl is typically http://127.0.0.1:27123 (the plugin's HTTP port).
+// apiKey is the bearer token from the Local REST API plugin settings.
+// Lives in app_settings (DM-write) but is only ever read by the DM page,
+// so no one but the DM sees or uses it.
+const DEFAULT_OBSIDIAN_API = { baseUrl: 'http://127.0.0.1:27123', apiKey: '' };
+
 const DEFAULT_BACKGROUND = {
   mode: 'none',
   opacity: 0.35,
@@ -54,6 +61,7 @@ const DEFAULTS = {
   typo_section_heading: DEFAULT_TYPOGRAPHY.section_heading,
   external_zoom_url:        DEFAULT_EXTERNALS.zoom,
   external_dndbeyond_urls:  DEFAULT_EXTERNALS.dndbeyond,
+  obsidian_api:             DEFAULT_OBSIDIAN_API,
   site_background:          DEFAULT_BACKGROUND,
   site_lines:               DEFAULT_LINES,
   faction_cards_per_row:    { n: DEFAULT_FACTION_CARDS_PER_ROW },
@@ -101,6 +109,7 @@ export const useAppSettingsStore = defineStore('appSettings', {
     },
     externalZoomUrl: '',
     externalDndbeyondUrls: { ...DEFAULT_EXTERNALS.dndbeyond },
+    obsidianApi: { ...DEFAULT_OBSIDIAN_API },
     siteBackground: { ...DEFAULT_BACKGROUND },
     siteLines: { ...DEFAULT_LINES },
     factionCardsPerRow: DEFAULT_FACTION_CARDS_PER_ROW,
@@ -110,6 +119,7 @@ export const useAppSettingsStore = defineStore('appSettings', {
   }),
   getters: {
     defaultZoomUrl: () => DEFAULT_ZOOM_URL,
+    defaultObsidianApi: () => ({ ...DEFAULT_OBSIDIAN_API }),
     dndbeyondUrlFor: (s) => (bucket) => {
       if (!bucket) return '';
       const map = s.externalDndbeyondUrls || {};
@@ -163,6 +173,12 @@ export const useAppSettingsStore = defineStore('appSettings', {
           butcher: value?.butcher ?? '',
           charlie: value?.charlie ?? '',
           dm:      value?.dm      ?? ''
+        };
+      }
+      if (key === 'obsidian_api') {
+        this.obsidianApi = {
+          baseUrl: value?.baseUrl ?? DEFAULT_OBSIDIAN_API.baseUrl,
+          apiKey:  value?.apiKey  ?? DEFAULT_OBSIDIAN_API.apiKey
         };
       }
       if (key === 'site_background') {
@@ -281,6 +297,18 @@ export const useAppSettingsStore = defineStore('appSettings', {
     async resetZoomUrl() {
       this.externalZoomUrl = DEFAULT_ZOOM_URL;
       await appSettingsApi.setKey('external_zoom_url', { url: DEFAULT_ZOOM_URL });
+    },
+    async setObsidianApi(patch) {
+      const next = {
+        baseUrl: (patch?.baseUrl ?? this.obsidianApi.baseUrl ?? '').trim(),
+        apiKey:  (patch?.apiKey  ?? this.obsidianApi.apiKey  ?? '').trim()
+      };
+      this.obsidianApi = next;
+      await appSettingsApi.setKey('obsidian_api', next);
+    },
+    async resetObsidianApi() {
+      this.obsidianApi = { ...DEFAULT_OBSIDIAN_API };
+      await appSettingsApi.setKey('obsidian_api', { ...DEFAULT_OBSIDIAN_API });
     },
     async setDndbeyondUrls(map) {
       const next = {
