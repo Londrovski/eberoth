@@ -14,6 +14,11 @@
 
       <q-separator class="sep" />
 
+      <div class="dm-label">Obsidian API (DM view)</div>
+      <ObsidianApiControl />
+
+      <q-separator class="sep" />
+
       <div class="dm-label">Card scale</div>
       <CardScaleControls which="card" />
 
@@ -75,6 +80,7 @@
 <script setup>
 import { ref } from 'vue';
 import ZoomLinkControl from 'components/topbar/ZoomLinkControl.vue';
+import ObsidianApiControl from 'components/topbar/ObsidianApiControl.vue';
 import CardScaleControls from 'components/topbar/CardScaleControls.vue';
 import TypographyControls from 'components/topbar/TypographyControls.vue';
 import BackgroundControls from 'components/topbar/BackgroundControls.vue';

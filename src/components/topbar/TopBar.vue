@@ -12,6 +12,7 @@
       <q-tabs dense no-caps inline-label align="center" class="eb-tabs gt-xs">
         <q-route-tab :to="{ name: 'home' }"  label="Home" />
         <q-route-tab :to="{ name: 'notes' }" label="Notes" />
+        <q-route-tab v-if="viewer.isDM" :to="{ name: 'dm' }" label="DM" />
         <q-route-tab v-if="viewer.isDM" :to="{ name: 'admin-usage' }" label="Admin" />
       </q-tabs>
 
@@ -78,6 +79,10 @@
     </div>
     <q-separator style="background:var(--border)" />
     <q-list v-if="viewer.isDM">
+      <q-item clickable v-ripple :to="{ name: 'dm' }" class="drawer-item" @click="drawerOpen = false">
+        <q-item-section avatar><q-icon name="auto_stories" /></q-item-section>
+        <q-item-section>DM View</q-item-section>
+      </q-item>
       <q-item clickable v-ripple :to="{ name: 'admin-usage' }" class="drawer-item" @click="drawerOpen = false">
         <q-item-section avatar><q-icon name="admin_panel_settings" /></q-item-section>
         <q-item-section>Admin</q-item-section>
