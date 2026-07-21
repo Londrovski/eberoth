@@ -150,6 +150,38 @@
               </div>
             </div>
           </div>
+
+          <!-- OVERVIEWS -->
+          <div v-else-if="section === 'overviews'">
+            <div class="dm-head">
+              <div class="eyebrow">The Big Picture</div><h2>Overviews</h2>
+              <p class="lead">Your campaign overview docs. Click one to read it, with links through to any card it mentions.</p>
+            </div>
+            <div class="grid g-lore">
+              <div v-for="o in vault.overviews.value" :key="o.id" class="tcard" @click="openOverview(o)">
+                <h4>{{ o.name }}</h4>
+                <div class="tension clamp3">{{ plain(firstPara(o.body)) || (o.queryOnly ? 'Live dashboard — pulls the same cards as the other tabs.' : '') }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SESSIONS -->
+          <div v-else-if="section === 'sessions'">
+            <div class="dm-head">
+              <div class="eyebrow">The Record</div><h2>Sessions</h2>
+              <p class="lead">Session notes and summaries, newest first. Insights and canon shifts — transcripts are left out.</p>
+            </div>
+            <div class="dm-slist">
+              <div v-for="s in vault.sessions.value" :key="s.id" class="srow" @click="openSession(s)">
+                <div class="stag" :class="'k-' + s.kind.toLowerCase().replace(/[^a-z]/g,'')">{{ s.kind }}</div>
+                <div class="sbody">
+                  <div class="stitle">{{ s.name }}</div>
+                  <div v-if="s.oneLine" class="sone">{{ s.oneLine }}</div>
+                </div>
+                <div v-if="s.date" class="sdate">{{ s.date }}</div>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
 
@@ -170,7 +202,9 @@ import { renderMarkdown } from 'src/composables/dmMarkdown';
 
 const vault = useObsidianVault();
 const resolve = (name) => vault.resolveLink(name);
+// render markdown field → HTML with resolved wikilinks
 const R = (md) => renderMarkdown(md, resolve);
+// strip markdown/wikilinks to plain text for card-face previews
 function plain(md) {
   if (!md) return '';
   return String(md)
@@ -182,7 +216,9 @@ const SECTIONS = [
   { id: 'players', ic: '◈', label: 'Players' },
   { id: 'factions', ic: '⛨', label: 'Factions' },
   { id: 'npcs', ic: '☗', label: 'NPCs' },
-  { id: 'story', ic: '❈', label: 'Lore · Threads · Beats' }
+  { id: 'story', ic: '❈', label: 'Lore · Threads · Beats' },
+  { id: 'overviews', ic: '✦', label: 'Overviews' },
+  { id: 'sessions', ic: '❯', label: 'Sessions' }
 ];
 const section = ref('players');
 const detail = ref(null);
@@ -215,8 +251,10 @@ function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').repla
 function reload() { vault.loadAll(); }
 function imgErr(e) { e.target.style.display = 'none'; if (e.target.parentElement) e.target.parentElement.classList.add('noimg'); }
 
+// ---- section helpers: every prose field routes through R() (markdown+wikilinks) ----
 function fieldSec(t, md, cls = '') { return md ? `<div class="sec ${cls}"><div class="sh">${esc(t)}</div><div class="md">${R(md)}</div></div>` : ''; }
 
+// ---- openers ----
 function openNpc(n) {
   let b = '';
   if (n.thin) b += `<div class="thin-note">Sparse card — only the fields the vault holds are shown.</div>`;
@@ -300,6 +338,21 @@ function openPlayer(p) {
   showDetail(head, b);
 }
 
+// ---- overviews + sessions ----
+function openOverview(o) {
+  const b = `<div class="sec"><div class="md">${R(o.body)}</div></div>`;
+  const head = `<div class="dhead"><div style="flex:1"><div class="eyebrow" style="margin-bottom:6px">Overview</div><h2>${esc(o.name)}</h2></div></div>`;
+  showDetail(head, b);
+}
+
+function openSession(s) {
+  const b = `<div class="sec"><div class="md">${R(s.body)}</div></div>`;
+  const meta = [s.kind, s.date].filter(Boolean).map(x => `<span class="chip">${esc(x)}</span>`).join('');
+  const head = `<div class="dhead"><div style="flex:1"><div class="eyebrow" style="margin-bottom:6px">Session</div><h2>${esc(s.name)}</h2><div class="dtags">${meta}</div></div></div>`;
+  showDetail(head, b);
+}
+
+// ---- drawer plumbing + wikilink click delegation ----
 function showDetail(head, body) {
   detailHtml.value = head + `<div class="dbody">${body}</div>`;
   detail.value = true;
@@ -312,6 +365,7 @@ function openById(kind, id) {
   if (kind === 'lore') { const l = vault.lore.value.find(x => x.id === id); if (l) return openLore(l); }
   if (kind === 'player') { const p = vault.players.value.find(x => x.id === id); if (p) return openPlayer(p); }
 }
+// Event delegation: a click on any .wl or .linknpc inside the drawer opens that entity.
 function onDrawerClick(e) {
   const el = e.target.closest('.wl, .linknpc');
   if (!el) return;
@@ -433,6 +487,20 @@ onMounted(() => { if (vault.configured.value) vault.loadAll(); });
 .pushtag b { color: var(--dm-gold); }
 .ph-badge { position: absolute; top: 12px; right: 12px; font-family: var(--dm-sans); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--dm-red); border: 1px solid var(--dm-red-soft); border-radius: 4px; padding: 2px 6px; }
 
+.dm-slist { display: flex; flex-direction: column; gap: 8px; max-width: 900px; }
+.srow { display: flex; align-items: center; gap: 16px; background: linear-gradient(180deg, var(--dm-panel2), var(--dm-panel)); border: 1px solid var(--dm-line); border-radius: 10px; padding: 13px 16px; cursor: pointer; transition: .16s; }
+.srow:hover { border-color: var(--dm-gold-deep); transform: translateX(2px); }
+.stag { font-family: var(--dm-sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; border-radius: 5px; background: var(--dm-panel); border: 1px solid var(--dm-line-soft); color: var(--dm-ink-faint); flex: 0 0 auto; min-width: 74px; text-align: center; }
+.stag.k-main { color: var(--dm-gold); border-color: var(--dm-gold-deep); }
+.stag.k-backstory { color: var(--dm-blue); }
+.stag.k-flashback { color: var(--dm-cool); }
+.stag.k-oneshot { color: var(--dm-hot); }
+.sbody { flex: 1; min-width: 0; }
+.stitle { font-size: 17px; color: var(--dm-gold-bright); }
+.sone { font-family: var(--dm-sans); font-size: 12.5px; color: var(--dm-ink-dim); margin-top: 3px; line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sdate { font-family: var(--dm-sans); font-size: 11.5px; color: var(--dm-ink-faint); flex: 0 0 auto; }
+
 .dm-empty { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 140px); padding: 40px; }
 .dm-empty-card { max-width: 520px; background: linear-gradient(180deg, var(--dm-panel2), var(--dm-panel)); border: 1px solid var(--dm-line); border-radius: 14px; padding: 32px 34px; }
 .dm-empty-title { font-size: 24px; color: var(--dm-gold-bright); margin-bottom: 14px; }
@@ -481,6 +549,9 @@ onMounted(() => { if (vault.configured.value) vault.loadAll(); });
 .dm-drawer .md em { color: #b7a8d0; font-style: italic; }
 .dm-drawer .md code { background: #1b1611; border: 1px solid #2a2219; border-radius: 3px; padding: 1px 5px; font-size: 12.5px; color: #c9a24b; }
 .dm-drawer .md .md-hr { border: none; border-top: 1px solid #2a2219; margin: 14px 0; }
+.dm-drawer .md .md-query { font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #8a7c63; font-style: italic; background: rgba(90,125,154,.06); border: 1px dashed rgba(90,125,154,.3); border-radius: 6px; padding: 9px 13px; margin: 8px 0; }
+.dm-drawer .md .md-pre { background: #0f0d0a; border: 1px solid #2a2219; border-radius: 6px; padding: 10px 12px; overflow-x: auto; margin: 8px 0; }
+.dm-drawer .md .md-pre code { background: none; border: none; padding: 0; color: #b3a488; font-size: 12px; }
 .dm-drawer .md .md-quote { border-left: 2px solid #8a6d2e; padding-left: 12px; color: #8a7c63; font-style: italic; margin: 8px 0; }
 .dm-drawer .md .md-table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 13.5px; }
 .dm-drawer .md .md-table td, .dm-drawer .md .md-table th { border: 1px solid #2a2219; padding: 6px 10px; text-align: left; vertical-align: top; }
