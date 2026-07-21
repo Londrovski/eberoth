@@ -19,8 +19,13 @@ const FOLDERS = {
   faction: '2. Content/3. Factions',
   lore:    '2. Content/4. Lore',
   thread:  '2. Content/5. Threads',
-  player:  '2. Content/6. Players'
+  player:  '2. Content/6. Players',
+  overview: '3. Overviews'
 };
+
+// Session folders (transcripts deliberately excluded).
+const SESSION_ROOT = '4. Sessions';
+const SESSION_SUBS = ['Main Story', 'Flashbacks'];
 
 // ---- tiny YAML frontmatter parser -------------------------------------
 // Handles the subset the Eberoth cards use: scalars, quoted strings,
@@ -129,7 +134,7 @@ export function useObsidianVault() {
   const app = useAppSettingsStore();
   const loading = ref(false);
   const error = ref(null);
-  const raw = ref({ npcs: [], factions: [], lore: [], threads: [], players: [] });
+  const raw = ref({ npcs: [], factions: [], lore: [], threads: [], players: [], overviews: [], sessions: [] });
 
   const configured = computed(() =>
     !!(app.obsidianApi?.baseUrl && app.obsidianApi?.apiKey));
@@ -190,6 +195,7 @@ export function useObsidianVault() {
     for (const dir of subdirs) {
       try {
         const files = await apiListDir(`${FOLDERS.player}/${dir}`);
+        // main file = <dir>.md; skip spotlight for the main; grab spotlight separately
         const mainFile = files.find(f => f.replace('.md', '') === dir)
           || files.find(f => !/spotlight/i.test(f)) || files[0];
         const spotFile = files.find(f => /spotlight/i.test(f));
@@ -201,6 +207,23 @@ export function useObsidianVault() {
     return players;
   }
 
+  // Sessions: root loose files + Main Story + Flashbacks (transcripts excluded).
+  async function loadSessions() {
+    const out = [];
+    const dirs = [SESSION_ROOT, ...SESSION_SUBS.map(s => `${SESSION_ROOT}/${s}`)];
+    for (const dir of dirs) {
+      let files = [];
+      try { files = await apiListDir(dir); } catch (e) { continue; }
+      for (const f of files) {
+        try {
+          const md = await apiReadFile(`${dir}/${f}`);
+          out.push({ file: f, folder: dir, ...parseFrontmatter(md) });
+        } catch (e) { /* skip */ }
+      }
+    }
+    return out;
+  }
+
   async function loadAll() {
     if (!configured.value) {
       error.value = 'Obsidian API not configured — set the URL and key in DM Tools.';
@@ -209,10 +232,11 @@ export function useObsidianVault() {
     loading.value = true;
     error.value = null;
     try {
-      const [npcs, factions, lore, threads, players] = await Promise.all([
-        loadType('npc'), loadType('faction'), loadType('lore'), loadType('thread'), loadPlayers()
+      const [npcs, factions, lore, threads, players, overviews, sessions] = await Promise.all([
+        loadType('npc'), loadType('faction'), loadType('lore'), loadType('thread'), loadPlayers(),
+        loadType('overview'), loadSessions()
       ]);
-      raw.value = { npcs, factions, lore, threads, players };
+      raw.value = { npcs, factions, lore, threads, players, overviews, sessions };
     } catch (e) {
       const msg = String(e.message || e);
       if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
@@ -234,6 +258,7 @@ export function useObsidianVault() {
     const byFac = {};
     for (const n of npcs.value) { (byFac[n.faction] = byFac[n.faction] || []).push(n); }
     for (const f of list) {
+      // connected NPCs = members resolved to NPC cards, plus any NPC whose faction matches
       const memberIds = new Set(f.members.map(m => slug(m)));
       const byMember = npcs.value.filter(n => memberIds.has(n.id));
       const byFaction = byFac[f.name] || [];
@@ -248,8 +273,12 @@ export function useObsidianVault() {
   const lore = computed(() => raw.value.lore.map(shapeLore).filter(Boolean));
   const threads = computed(() => raw.value.threads.map(shapeThread).filter(Boolean));
   const players = computed(() => raw.value.players.map(shapePlayer).filter(Boolean));
+  const overviews = computed(() => raw.value.overviews.map(shapeOverview).filter(Boolean));
+  const sessions = computed(() => raw.value.sessions.map(shapeSession).filter(Boolean)
+    .sort((a, b) => b.sort - a.sort));
 
   // ---- global entity index for wikilink resolution ----
+  // maps a normalised name (and aliases) -> { kind, id }
   const index = computed(() => {
     const idx = {};
     const add = (name, kind, id) => { if (name) idx[normKey(name)] = { kind, id }; };
@@ -337,10 +366,39 @@ export function useObsidianVault() {
     };
   }
 
+  function shapeOverview(row) {
+    const name = String(row.file || '').replace(/\.md$/, '');
+    if (!name) return null;
+    const body = row.body || '';
+    // Is this page essentially just Dataview queries (no real prose)?
+    const prose = body.replace(/```[\s\S]*?```/g, '').replace(/[#>*|_\-\s]/g, '');
+    return {
+      id: slug(name), name, body,
+      queryOnly: prose.length < 60
+    };
+  }
+
+  function shapeSession(row) {
+    const name = String(row.file || '').replace(/\.md$/, '');
+    if (!name) return null;
+    const body = row.body || '';
+    // Title/number: "Session 7 - The Hearing" / "Session 0.1 - Azrael Backstory" / "Session Flashback - ..."
+    const num = name.match(/session\s+([0-9]+(?:\.[0-9]+)?)/i);
+    const sort = num ? parseFloat(num[1]) : (/flashback/i.test(name) ? -1 : (/one-shot/i.test(name) ? -0.5 : 0));
+    // Pull date + one-liner from the leading > [!info] callout if present.
+    let date = '', oneLine = '';
+    const dm = body.match(/·\s*(\d{4}-\d{2}-\d{2})/);
+    if (dm) date = dm[1];
+    const ol = body.match(/\*\*One line:\*\*\s*([^\n]+)/i);
+    if (ol) oneLine = ol[1].replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, a, b) => (b || a)).trim();
+    const kind = /flashback/i.test(name) ? 'Flashback' : (/one-shot/i.test(name) ? 'One-shot' : (/0\./.test(name) ? 'Backstory' : 'Main'));
+    return { id: slug(name), name, body, sort, date, oneLine, kind };
+  }
+
   return {
     loading, error, configured,
     loadAll,
-    npcs, factions, lore, threads, players,
+    npcs, factions, lore, threads, players, overviews, sessions,
     index, resolveLink
   };
 }
